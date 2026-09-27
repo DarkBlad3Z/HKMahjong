@@ -1891,7 +1891,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
     minFan: 3, payment: 'full', unit: 'points', rounds: 4, aiLevel: 'normal', startingScore: 0,
     optional: { kong: false, sevenPairs: true, luxurySevenPairs: true, knitted: true, lesserHonours: true, greaterHonours: true }
   };
-  var DEFAULT_NAMES = ['You', 'Julie', 'Bell', 'Patt'];
+  var DEFAULT_NAMES = ['You', 'Julie', 'Bel', 'Pat'];
   var MAX_HANDS = 300;              // SPEC §2.2 safety cap
   var LOG_KEEP = 300, LOG_VIEW = 60;
   var SAVE_FORMAT = 'hkmj-game', SAVE_VERSION = 1;
@@ -4976,7 +4976,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
       settingsRow('Sound effects 音效', checkboxInput('sound', d.sound)) +
       settingsRow('Music 音樂', checkboxInput('music', d.music !== false));
     var display = '<div class="settings-subhead">Display 顯示</div>' +
-      settingsRow('Tile &amp; table size 大小', selectInput('displaySize', d.displaySize || 'standard',
+      settingsRow('Tile &amp; table size 大小', selectInput('displaySize', d.displaySize || 'xlarge',
         [['standard', 'Standard'], ['large', 'Large'], ['xlarge', 'Extra large']])) +
       settingsRow('Highlight matching tiles 同牌', checkboxInput('hoverHighlight', d.hoverHighlight !== false)) +
       settingsRow('New tiles go 新牌', selectInput('newTiles', d.newTiles || 'sorted',
@@ -5258,7 +5258,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
   function defaultUiSettings() {
     var s = JSON.parse(JSON.stringify(HKMJ.DEFAULT_SETTINGS || { minFan: 3, payment: 'full', unit: 'points', rounds: 4, aiLevel: 'normal', startingScore: 0, optional: {} }));
     s.name = 'You'; s.speed = 'normal'; s.hints = true; s.sound = true; s.music = true;
-    s.displaySize = 'standard'; s.hoverHighlight = true; s.newTiles = 'sorted';   // display preferences (no restart needed)
+    s.displaySize = 'xlarge'; s.hoverHighlight = true; s.newTiles = 'sorted';   // display preferences (no restart needed)
     return s;
   }
   function loadSettings() {
@@ -5614,7 +5614,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
     };
     clearTimers();
     try {
-      G = new HKMJ.Game({ settings: engineSettings, names: [draft.name || 'You', 'Julie', 'Bell', 'Patt'], humans: [0] });
+      G = new HKMJ.Game({ settings: engineSettings, names: [draft.name || 'You', 'Julie', 'Bel', 'Pat'], humans: [0] });
       attachEngineListeners();
       G.start();
     } catch (e) {
@@ -5705,7 +5705,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
     if (state.ui && state.settings) {
       state.ui.soundOn = !!state.settings.sound;
       state.ui.musicOn = state.settings.music !== false;
-      state.ui.displaySize = state.settings.displaySize || 'standard';
+      state.ui.displaySize = state.settings.displaySize || 'xlarge';
       state.ui.hoverHighlight = state.settings.hoverHighlight !== false;
     }
     try { rootEl.innerHTML = HKMJ.UI.renderRoot(state); }
@@ -5723,7 +5723,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
    *  Extra large): shrink that seat only, so it never covers a neighbour. Measured in canvas px (offset sizes). */
   function applySeatFit() {
     try {
-      var z = HKMJ.UI.SIZES[(state.settings && state.settings.displaySize) || 'standard'] || HKMJ.UI.SIZES.standard;
+      var z = HKMJ.UI.SIZES[(state.settings && state.settings.displaySize) || 'xlarge'] || HKMJ.UI.SIZES.standard;
       var F = HKMJ.UI.FELT, rowAvail = F.w - 2 * (2 * F.edge + z.hh), colAvail = F.h - 2 * F.edge;
       [['.seat-bottom', 'w', rowAvail], ['.seat-top', 'w', rowAvail], ['.seat-left', 'h', colAvail], ['.seat-right', 'h', colAvail]].forEach(function (c) {
         var el = rootEl.querySelector(c[0]);

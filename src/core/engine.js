@@ -21,7 +21,7 @@
     minFan: 3, payment: 'full', unit: 'points', rounds: 4, aiLevel: 'normal', startingScore: 0,
     optional: { kong: false, sevenPairs: true, luxurySevenPairs: true, knitted: true, lesserHonours: true, greaterHonours: true }
   };
-  var DEFAULT_NAMES = ['You', 'Julie', 'Bell', 'Patt'];
+  var DEFAULT_NAMES = ['You', 'Julie', 'Bel', 'Pat'];
   var MAX_HANDS = 300;              // SPEC §2.2 safety cap
   var LOG_KEEP = 300, LOG_VIEW = 60;
   var SAVE_FORMAT = 'hkmj-game', SAVE_VERSION = 1;

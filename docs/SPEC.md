@@ -279,7 +279,7 @@ Must be fast: `shanten` is called thousands of times per AI decision — memoise
 var g = new HKMJ.Game({
   seed,                       // number|string; default random
   settings,                   // merged over HKMJ.DEFAULT_SETTINGS (below)
-  names: ['You','Julie','Bell','Patt'],
+  names: ['You','Julie','Bel','Pat'],
   humans: [0],                // indices controlled by a person (UI [0]; simulations [])
   firstDealer,                // optional
   presetWalls                 // optional [wall0, wall1, ...] (arrays of 144 kinds) used for hands 0,1,..., for tests

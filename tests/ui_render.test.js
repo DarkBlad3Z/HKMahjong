@@ -143,7 +143,7 @@ var GUARD = 8000;
 for (var s = 0; s < SEEDS; s++) {
   var g;
   tryRun('game seed ' + s + ' plays to completion without exceptions', function () {
-    g = new HKMJ.Game({ seed: 70000 + s, names: ['You', 'Julie', 'Bell', 'Patt'], humans: [0] });
+    g = new HKMJ.Game({ seed: 70000 + s, names: ['You', 'Julie', 'Bel', 'Pat'], humans: [0] });
     g.start();
     var guard = 0;
     while (guard++ < GUARD) {
@@ -200,7 +200,7 @@ function buildScenario(hands, extra) {
   // 14-tile hand, and the Game must be told the same thing so the deal actually lands the tiles on player 0.
   var spec = Object.assign({ hands: hands }, extra || {});
   var wall = HKMJ.Game.buildWall(spec, HKMJ.RNG(1));
-  return new HKMJ.Game(Object.assign({ presetWalls: [wall], firstDealer: 0, humans: [0], names: ['You', 'Julie', 'Bell', 'Patt'] }, extra && extra.gameOpts));
+  return new HKMJ.Game(Object.assign({ presetWalls: [wall], firstDealer: 0, humans: [0], names: ['You', 'Julie', 'Bel', 'Pat'] }, extra && extra.gameOpts));
 }
 
 // Blessing of Heaven: dealer (player 0)'s opening 14 tiles are already a complete standard hand.

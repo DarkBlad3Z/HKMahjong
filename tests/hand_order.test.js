@@ -99,7 +99,7 @@ for (var game = 0; game < 400; game++) {
 ok(bad === 0, 'fuzz: ' + bad + ' invariant violations over 400 random hands');
 
 // every display size: all four seats use the same hand-tile size; side hands fit the felt
-var g = new HKMJ.Game({ seed: 99, names: ['You', 'Julie', 'Bell', 'Patt'], humans: [0] });
+var g = new HKMJ.Game({ seed: 99, names: ['You', 'Julie', 'Bel', 'Pat'], humans: [0] });
 g.start();
 ['standard', 'large', 'xlarge'].forEach(function (size) {
   var html = HKMJ.UI.renderRoot({ screen: 'game', view: g.getView(0), ui: { displaySize: size, callouts: [], aiThinking: {} } });

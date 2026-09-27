@@ -26,7 +26,7 @@ var OPT = { kong: false, sevenPairs: true, luxurySevenPairs: true, knitted: true
 function mkView(o) {
   var players = [0, 1, 2, 3].map(function (i) {
     var x = (o.players && o.players[i]) || {};
-    return { index: i, name: ['You', 'Julie', 'Bell', 'Patt'][i], isHuman: i === 0, seatWind: (i - (o.dealer || 0) + 4) % 4, isDealer: i === (o.dealer || 0),
+    return { index: i, name: ['You', 'Julie', 'Bel', 'Pat'][i], isHuman: i === 0, seatWind: (i - (o.dealer || 0) + 4) % 4, isDealer: i === (o.dealer || 0),
       score: 0, handCount: x.handCount || 13, hand: i === 0 ? P(o.hand) : null, drawn: null,
       melds: (x.melds || []).map(function (m) { return typeof m === 'string' ? meld(m) : m; }), flowers: x.flowers ? P(x.flowers) : [34 + ((i + 1) % 4)],
       discards: x.discards ? P(x.discards) : [], lastAction: null };

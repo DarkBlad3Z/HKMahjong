@@ -92,12 +92,12 @@ tests/ui_render.test.js  Node test: drive a game (real engine if present, else m
   Full game (4 rounds, default) / East round only; Computer level easy/normal/hard; Speed; Hints; Sound; Your name;
   **Table rules †** toggles with the booklet's note: Kong (default off), Seven Pairs, Luxury Seven Pairs, Knitted
   Tiles, Lesser Honours, Greater Honours (default on). Game-rule changes take effect in a new game (confirm dialog).
-* **Hand result** (paper-card modal, booklet look): title ("Julie wins by Self-Pick 自摸" / "You win on Bell's discard" /
+* **Hand result** (paper-card modal, booklet look): title ("Julie wins by Self-Pick 自摸" / "You win on Bel's discard" /
   "Robbing the Kong"); the winning hand grouped by `evaluation.groups` (sets, pair, knitted run, singles), declared melds
   marked, concealed Kong with face-down outer tiles, the winning tile with the booklet's red triangle, flowers; a Fan
   table — each `evaluation.items` row: English name, 中文, detail, Fan; each `evaluation.replaced` row greyed with
   strikethrough and its reason; total ("9 Fan", or "13 Fan — limit (raw 15)"); payment lines from `result.payments`
-  ("Bell pays 96" …) and new scores; next deal ("East keeps the deal" / "The deal passes to …" / round change);
+  ("Bel pays 96" …) and new scores; next deal ("East keeps the deal" / "The deal passes to …" / round change);
   a compact row with all four revealed hands; button "Next hand 下一局". Draws: "流局 Draw — the wall is exhausted".
 * **Game over**: final standings with ranks and totals, "New game".
 * **Rules 牌例** (tabbed, paper look, content from `HKMJ.RulesContent`, tile examples drawn with the tile art):
@@ -106,7 +106,7 @@ tests/ui_render.test.js  Node test: drive a game (real engine if present, else m
   payment rules), Fan Combinations (the booklet's combination tables). Paraphrase — do not paste long booklet passages.
 
 ## 6. Controller rules (app.js)
-* `new HKMJ.Game({seed, settings, names:[name,'Julie','Bell','Patt'], humans:[0]})`, then `start()`.
+* `new HKMJ.Game({seed, settings, names:[name,'Julie','Bel','Pat'], humans:[0]})`, then `start()`.
 * After every change: re-render from `g.getView(0)`. If the pending decision belongs to an AI: after the pacing
   delay call `HKMJ.AI.decide(g.getView(p), g.getActions(p), {level})` and `g.act(p, action)`. During claims, submit
   every waiting AI's answer (after the claim pause) — if you (player 0) are also waiting, wait for your click.

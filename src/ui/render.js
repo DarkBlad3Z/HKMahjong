@@ -565,7 +565,7 @@
       settingsRow('Sound effects 音效', checkboxInput('sound', d.sound)) +
       settingsRow('Music 音樂', checkboxInput('music', d.music !== false));
     var display = '<div class="settings-subhead">Display 顯示</div>' +
-      settingsRow('Tile &amp; table size 大小', selectInput('displaySize', d.displaySize || 'standard',
+      settingsRow('Tile &amp; table size 大小', selectInput('displaySize', d.displaySize || 'xlarge',
         [['standard', 'Standard'], ['large', 'Large'], ['xlarge', 'Extra large']])) +
       settingsRow('Highlight matching tiles 同牌', checkboxInput('hoverHighlight', d.hoverHighlight !== false)) +
       settingsRow('New tiles go 新牌', selectInput('newTiles', d.newTiles || 'sorted',

@@ -34,7 +34,7 @@
   function defaultUiSettings() {
     var s = JSON.parse(JSON.stringify(HKMJ.DEFAULT_SETTINGS || { minFan: 3, payment: 'full', unit: 'points', rounds: 4, aiLevel: 'normal', startingScore: 0, optional: {} }));
     s.name = 'You'; s.speed = 'normal'; s.hints = true; s.sound = true; s.music = true;
-    s.displaySize = 'standard'; s.hoverHighlight = true; s.newTiles = 'sorted';   // display preferences (no restart needed)
+    s.displaySize = 'xlarge'; s.hoverHighlight = true; s.newTiles = 'sorted';   // display preferences (no restart needed)
     return s;
   }
   function loadSettings() {
@@ -481,7 +481,7 @@
     if (state.ui && state.settings) {
       state.ui.soundOn = !!state.settings.sound;
       state.ui.musicOn = state.settings.music !== false;
-      state.ui.displaySize = state.settings.displaySize || 'standard';
+      state.ui.displaySize = state.settings.displaySize || 'xlarge';
       state.ui.hoverHighlight = state.settings.hoverHighlight !== false;
     }
     try { rootEl.innerHTML = HKMJ.UI.renderRoot(state); }
@@ -499,7 +499,7 @@
    *  Extra large): shrink that seat only, so it never covers a neighbour. Measured in canvas px (offset sizes). */
   function applySeatFit() {
     try {
-      var z = HKMJ.UI.SIZES[(state.settings && state.settings.displaySize) || 'standard'] || HKMJ.UI.SIZES.standard;
+      var z = HKMJ.UI.SIZES[(state.settings && state.settings.displaySize) || 'xlarge'] || HKMJ.UI.SIZES.standard;
       var F = HKMJ.UI.FELT, rowAvail = F.w - 2 * (2 * F.edge + z.hh), colAvail = F.h - 2 * F.edge;
       [['.seat-bottom', 'w', rowAvail], ['.seat-top', 'w', rowAvail], ['.seat-left', 'h', colAvail], ['.seat-right', 'h', colAvail]].forEach(function (c) {
         var el = rootEl.querySelector(c[0]);

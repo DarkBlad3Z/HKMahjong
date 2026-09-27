@@ -268,7 +268,7 @@ test('head bump: several wins on one discard — the first claimant in turn orde
   eq([r.winner, r.payer, r.bumped], [2, 1, [0]]);
   eq(r.payments, [0, -16, 16, 0]);
   eq([r.dealerStays, r.nextDealer], [false, 1], 'a non-dealer win passes the deal to the dealer\'s right');
-  ok(view(g, 0).log.indexOf('Head bump 截糊: Bell is first in turn order after Julie, ahead of you') >= 0, 'head bump log line');
+  ok(view(g, 0).log.indexOf('Head bump 截糊: Bel is first in turn order after Julie, ahead of you') >= 0, 'head bump log line');
   g = newGame([wall(BUMP)]);
   discard(g, 0, '北'); discard(g, 1, '9m');
   act(g, 2, { type: 'pass' }); act(g, 3, { type: 'pass' }); act(g, 0, { type: 'win' });
@@ -920,8 +920,8 @@ test('log lines: English + Chinese tile names, "You" conjugation', function () {
   discard(g, 2, '西'); discard(g, 3, '1p');
   act(g, 0, { type: 'selfWin' });
   var log = view(g, 0).log;
-  ['You discard 9 Dots 九筒', 'Julie discards 5 Dots 五筒', 'Bell pongs Red Dragon 中', 'You win by Self-Pick — 6 Fan',
-    'Payments: You +96, Julie -32, Bell -32, Patt -32', 'You keep the deal.'].forEach(function (line) {
+  ['You discard 9 Dots 九筒', 'Julie discards 5 Dots 五筒', 'Bel pongs Red Dragon 中', 'You win by Self-Pick — 6 Fan',
+    'Payments: You +96, Julie -32, Bel -32, Pat -32', 'You keep the deal.'].forEach(function (line) {
     ok(log.indexOf(line) >= 0, 'log has "' + line + '"; got:\n  ' + log.join('\n  '));
   });
   ok(/^Hand 1 — East Round 東風 · You deal · dice \d·\d·\d$/.test(log[0]), 'hand header: ' + log[0]);
@@ -962,7 +962,7 @@ test('buildWall helper and settings defaults', function () {
   var s = g.getView(0).settings;
   eq([s.minFan, s.optional.kong, s.optional.sevenPairs, s.rounds, s.speed, s.startingScore], [1, true, true, 4, 'fast', 500]);
   eq(g.getView(0).players.map(function (p) { return p.score; }), [500, 500, 500, 500]);
-  eq(g.getView(0).players.map(function (p) { return p.name; }), ['You', 'Julie', 'Bell', 'Patt']);
+  eq(g.getView(0).players.map(function (p) { return p.name; }), ['You', 'Julie', 'Bel', 'Pat']);
 });
 
 // ------------------------------------------------------------------------------------------------ run
