@@ -446,6 +446,10 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
 .ui-size-large .modal.result-modal { max-height: calc(96vh / 1.15); }
 .modal.result-modal { max-height: 96vh; }
 .result-modal .modal-actions .btn { font-size: 18px; padding: 12px 22px; }
+
+.sound-pick { display: flex; gap: 6px; align-items: center; }
+.sound-pick select { flex: 1; min-width: 0; }
+.btn.btn-preview { padding: 5px 10px; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -4978,6 +4982,19 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
   function checkboxInput(field, checked) { return '<input type="checkbox" data-field="' + field + '"' + (checked ? ' checked' : '') + '/>'; }
   function numberSelect(field, value, min, max) { var opts = []; for (var i = min; i <= max; i++) opts.push([i, String(i)]); return selectInput(field, value, opts); }
 
+  // Settings → claim sounds (players live in app.js CLAIM_PLAYERS under the same ids)
+  var CLAIM_SOUNDS = {
+    chow: [['c1', 'Voice: "Chow! Chow! Chow!"'], ['c2', 'Voice: cartoon "chow chow chow"'], ['c3', 'Voice: announcer "CHOW!" + drum'],
+      ['c4', 'Synth: "chow-chow-chow"'], ['c5', 'Synth: "chow-chow-CHOW!" + sparkle'], ['nom', 'Nom nom nom (eating)']],
+    pong: [['p1', 'Voice: "Pongggg!"'], ['p2', 'Voice: deep "PUNG!" + drum'], ['p3', 'Synth: "Pongggg"'], ['p4', 'Synth: punchy "PUNG!"'], ['p5', 'Drum "pa-PONG" (original)']],
+    kong: [['k1', 'Voice: "Konggggg!"'], ['k2', 'Voice: "Kunggg!"'], ['k3', 'Synth: "KONGGGG" + gong'], ['k4', 'Synth: "Kunggg" robot'], ['k5', 'Voice "KONG!" + big gong'], ['orig', 'Drum stab (original)']]
+  };
+  function soundRow(kind, label, value) {
+    return '<label class="settings-row settings-sound-row"><span class="settings-label">' + label + '</span><span class="sound-pick">' +
+      selectInput(kind + 'Sound', value, CLAIM_SOUNDS[kind]) +
+      '<button type="button" class="btn btn-small btn-preview" data-action="preview-sound" data-kind="' + kind + '" title="Play this sound">▶</button></span></label>';
+  }
+
   var OPTIONAL_LABELS = {
     kong: 'Kong 槓', sevenPairs: 'Seven Pairs 七對子', luxurySevenPairs: 'Luxury Seven Pairs 豪華七對',
     knitted: 'Knitted Tiles 組合龍', lesserHonours: 'Lesser Honours 全不靠', greaterHonours: 'Greater Honours 七星不靠'
@@ -4995,7 +5012,10 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
       settingsRow('Speed 速度', selectInput('speed', d.speed, [['relaxed', 'Relaxed'], ['normal', 'Normal'], ['fast', 'Fast']])) +
       settingsRow('Hints 提示', checkboxInput('hints', d.hints)) +
       settingsRow('Sound effects 音效', checkboxInput('sound', d.sound)) +
-      settingsRow('Music 音樂', checkboxInput('music', d.music !== false));
+      settingsRow('Music 音樂', checkboxInput('music', d.music !== false)) +
+      soundRow('chow', 'Chow sound 上', d.chowSound || 'c2') +
+      soundRow('pong', 'Pong sound 碰', d.pongSound || 'p1') +
+      soundRow('kong', 'Kong sound 槓', d.kongSound || 'k1');
     var display = '<div class="settings-subhead">Display 顯示</div>' +
       settingsRow('Tile &amp; table size 大小', selectInput('displaySize', d.displaySize || 'xlarge',
         [['standard', 'Standard'], ['large', 'Large'], ['xlarge', 'Extra large']])) +
@@ -5279,6 +5299,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
   function defaultUiSettings() {
     var s = JSON.parse(JSON.stringify(HKMJ.DEFAULT_SETTINGS || { minFan: 3, payment: 'full', unit: 'points', rounds: 4, aiLevel: 'normal', startingScore: 0, optional: {} }));
     s.name = 'You'; s.speed = 'normal'; s.hints = true; s.sound = true; s.music = true;
+    s.chowSound = 'c2'; s.pongSound = 'p1'; s.kongSound = 'k1';   // Settings → claim sounds (ids in render.js CLAIM_SOUNDS)
     s.displaySize = 'xlarge'; s.hoverHighlight = true; s.newTiles = 'sorted';   // display preferences (no restart needed)
     return s;
   }
@@ -5380,15 +5401,15 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
       var ctx = getAudioCtx(); if (!ctx) return;
       var t = ctx.currentTime + 0.01, out = sfxBus, i;
       if (kind === 'clack') { tone(ctx, out, t, 210, 0.045, 'square', 0.12); noise(ctx, out, t, 0.03, 0.08, 2500); }
-      else if (kind === 'chow') {            // "nom nom nom" — three munches with a little crunch
+      else if (kind === 'chow-nom') {        // "nom nom nom" — three munches with a little crunch
         [0, 0.24, 0.48].forEach(function (d, j) {
           voice(ctx, out, t + d, [210, 175, 195][j], [150, 130, 140][j], 0.19, 'sawtooth', 0.22, [350, 1400, 300]);
           noise(ctx, out, t + d + 0.1, 0.05, 0.07, 3000);
         });
-      } else if (kind === 'pong') {          // punchy "pa-PONG" with a drum hit
+      } else if (kind === 'pong-orig') {     // punchy "pa-PONG" with a drum hit
         kick(ctx, out, t, 0.5); noise(ctx, out, t, 0.08, 0.25, 1800);
         tone(ctx, out, t, midiHz(76), 0.07, 'square', 0.14); tone(ctx, out, t + 0.09, midiHz(83), 0.22, 'square', 0.15, midiHz(88));
-      } else if (kind === 'kong') {          // heavier: double hit and a rising three-note stab
+      } else if (kind === 'kong-orig') {     // heavier: double hit and a rising three-note stab
         kick(ctx, out, t, 0.55); kick(ctx, out, t + 0.12, 0.5); noise(ctx, out, t + 0.12, 0.1, 0.28, 1500);
         [76, 81, 88].forEach(function (m, j) { tone(ctx, out, t + j * 0.07, midiHz(m), 0.2, 'sawtooth', 0.09); });
       } else if (kind === 'win') {           // victory fanfare + fireworks
@@ -5410,6 +5431,101 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
         tone(ctx, out, t + 0.58, midiHz(96), 0.5, 'square', 0.05, midiHz(100)); noise(ctx, out, t + 0.58, 0.35, 0.2, 5000);
       } else if (kind === 'chime') { tone(ctx, out, t, 660, 0.13, 'sine', 0.15); tone(ctx, out, t + 0.05, 880, 0.14, 'sine', 0.15); }
     } catch (e) { console.error('HKMJ: playSound failed', e); }
+  }
+
+  // ------------------------------------------------------------------ claim sounds: Settings → Chow / Pong / Kong sound
+  // Voice options use the device's speech voice (speechSynthesis); synth options imitate the word with a buzzy
+  // source through two moving band-pass "vowel" filters. If a device has no speech voice, a matching synth plays.
+  function noiseF(ctx, dest, t, dur, vol, type, freq, q) {
+    ensureNoise(ctx);
+    var src = ctx.createBufferSource(), filt = ctx.createBiquadFilter(), gain = ctx.createGain();
+    src.buffer = noiseBuf; filt.type = type; filt.frequency.value = freq; if (q) filt.Q.value = q;
+    gain.gain.setValueAtTime(vol, t); gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(filt); filt.connect(gain); gain.connect(dest); src.start(t); src.stop(t + dur + 0.02);
+  }
+  function ensureNoise(ctx) {
+    if (noiseBuf) return;
+    noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.5), ctx.sampleRate);
+    var d = noiseBuf.getChannelData(0); for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  function vowelSynth(ctx, dest, t, dur, pitch, vowels, vol, q) {
+    var src = ctx.createOscillator(), out = ctx.createGain(), f1 = ctx.createBiquadFilter(), f2 = ctx.createBiquadFilter(), g2 = ctx.createGain();
+    src.type = 'sawtooth';
+    src.frequency.setValueAtTime(pitch[0], t); src.frequency.exponentialRampToValueAtTime(pitch[1], t + dur);
+    [f1, f2].forEach(function (f) { f.type = 'bandpass'; f.Q.value = q || 6; });
+    vowels.forEach(function (v, i) {
+      var at = t + dur * v[0];
+      if (i === 0) { f1.frequency.setValueAtTime(v[1], at); f2.frequency.setValueAtTime(v[2], at); }
+      else { f1.frequency.linearRampToValueAtTime(v[1], at); f2.frequency.linearRampToValueAtTime(v[2], at); }
+    });
+    g2.gain.value = 0.55;
+    src.connect(f1); src.connect(f2); f1.connect(out); f2.connect(g2); g2.connect(out); out.connect(dest);
+    out.gain.setValueAtTime(0.0001, t); out.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+    out.gain.setValueAtTime(vol, t + dur * 0.6); out.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.start(t); src.stop(t + dur + 0.05);
+  }
+  function gong(ctx, dest, t, base, dur, vol) {
+    [1, 1.47, 2.09, 2.56, 3.21].forEach(function (m, i) { tone(ctx, dest, t, base * m, dur * (1 - i * 0.12), 'sine', vol / (i + 1.4)); });
+    noiseF(ctx, dest, t, 0.2, vol * 0.4, 'bandpass', base * 6, 2);
+  }
+  function chowWord(ctx, d, t, pitch, vol, fast) {
+    noise(ctx, d, t, 0.07, vol * 0.8, 3200);
+    vowelSynth(ctx, d, t + 0.05, fast ? 0.2 : 0.28, [pitch, pitch * 0.8], [[0, 750, 1250], [0.5, 650, 1000], [1, 350, 700]], vol);
+  }
+  function pongWord(ctx, d, t, pitch, vol, dur, uh) {
+    noiseF(ctx, d, t, 0.03, vol * 0.9, 'lowpass', 900);
+    vowelSynth(ctx, d, t + 0.02, dur, [pitch, pitch * 0.85], uh ? [[0, 650, 1150], [0.35, 620, 1100], [1, 280, 900]] : [[0, 520, 900], [0.35, 480, 850], [1, 280, 900]], vol, 7);
+    tone(ctx, d, t + dur * 0.35, pitch, dur * 0.9, 'sine', vol * 0.25, pitch * 0.85);
+  }
+  function kongWord(ctx, d, t, pitch, vol, dur, uh) {
+    noiseF(ctx, d, t, 0.035, vol, 'bandpass', 1900, 3);
+    vowelSynth(ctx, d, t + 0.03, dur, [pitch, pitch * 0.82], uh ? [[0, 640, 1150], [0.3, 600, 1100], [1, 270, 850]] : [[0, 520, 880], [0.3, 470, 830], [1, 270, 850]], vol, 7);
+    tone(ctx, d, t + dur * 0.3, pitch, dur, 'sine', vol * 0.25, pitch * 0.82);
+  }
+  var speechVoice = null;
+  function say(text, pitch, rate) {
+    try {
+      var S = root.speechSynthesis; if (!S || !root.SpeechSynthesisUtterance) return false;
+      if (!speechVoice) speechVoice = S.getVoices().filter(function (v) { return /^en/i.test(v.lang); })[0] || null;
+      if (!S.getVoices().length) return false;
+      var u = new root.SpeechSynthesisUtterance(text);
+      u.pitch = pitch; u.rate = rate; u.volume = 1; if (speechVoice) u.voice = speechVoice;
+      S.cancel(); S.speak(u);
+      return true;
+    } catch (e) { return false; }
+  }
+  /** id -> player. Voice ids fall back to a synth id when the device has no speech voice. */
+  var CLAIM_PLAYERS = {
+    c1: function () { return say('Chow! Chow! Chow!', 1.1, 1.25) || 'c4'; },
+    c2: function () { return say('chow chow chow!', 1.9, 1.5) || 'c4'; },
+    c3: function (ctx, d, t) { kick(ctx, d, t, 0.6); return say('Chow!', 0.55, 0.85) || 'c4'; },
+    c4: function (ctx, d, t) { [0, 0.25, 0.5].forEach(function (x, i) { chowWord(ctx, d, t + x, [200, 190, 230][i], 0.35, true); }); },
+    c5: function (ctx, d, t) { chowWord(ctx, d, t, 190, 0.32, true); chowWord(ctx, d, t + 0.24, 200, 0.32, true); chowWord(ctx, d, t + 0.5, 260, 0.38); tone(ctx, d, t + 0.62, 1568, 0.2, 'square', 0.06); tone(ctx, d, t + 0.7, 2093, 0.25, 'square', 0.05); },
+    nom: function () { playSound('chow-nom'); },
+    p1: function () { return say('Pongggg!', 1, 0.75) || 'p3'; },
+    p2: function (ctx, d, t) { kick(ctx, d, t, 0.7); return say('PUNG!', 0.5, 0.8) || 'p4'; },
+    p3: function (ctx, d, t) { pongWord(ctx, d, t, 150, 0.4, 0.7); },
+    p4: function (ctx, d, t) { kick(ctx, d, t, 0.7); noise(ctx, d, t, 0.08, 0.25, 1800); pongWord(ctx, d, t + 0.02, 120, 0.45, 0.45, true); },
+    p5: function () { playSound('pong-orig'); },
+    k1: function () { return say('Konggggg!', 0.6, 0.7) || 'k3'; },
+    k2: function () { return say('Kunggg!', 0.9, 0.75) || 'k4'; },
+    k3: function (ctx, d, t) { kongWord(ctx, d, t, 115, 0.42, 0.75); gong(ctx, d, t + 0.12, 110, 2.2, 0.28); },
+    k4: function (ctx, d, t) { kick(ctx, d, t, 0.6); kick(ctx, d, t + 0.12, 0.5); kongWord(ctx, d, t + 0.04, 105, 0.45, 0.8, true); },
+    k5: function (ctx, d, t) { gong(ctx, d, t, 98, 2.5, 0.32); return say('KONG!', 0.5, 0.8) || 'k3'; },
+    orig: function () { playSound('kong-orig'); }
+  };
+  var CLAIM_DEFAULT = { chow: 'c2', pong: 'p1', kong: 'k1' };
+  function playClaimById(id) {
+    try {
+      var ctx = getAudioCtx(); if (!ctx) return;
+      var fn = CLAIM_PLAYERS[id]; if (!fn) return;
+      var r = fn(ctx, sfxBus, ctx.currentTime + 0.01);
+      if (typeof r === 'string' && CLAIM_PLAYERS[r]) CLAIM_PLAYERS[r](ctx, sfxBus, ctx.currentTime + 0.01);   // no speech voice: synth instead
+    } catch (e) { console.error('HKMJ: claim sound failed', e); }
+  }
+  function playClaimSound(type) {
+    var id = state.settings && state.settings[type + 'Sound'];
+    playClaimById(CLAIM_PLAYERS[id] ? id : CLAIM_DEFAULT[type]);
   }
 
   // Original chiptune loop: A minor, 150 BPM, 4 bars (Am F C G) of 16th-note steps — driving bass, arpeggios,
@@ -5495,8 +5611,8 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
 
   function handleEngineEvent(evt) {
     if (evt.type === 'discard') playSound('clack');
-    else if (evt.type === 'claim') { playSound(evt.claim === 'chow' ? 'chow' : evt.claim === 'kong' ? 'kong' : 'pong'); addCallout(evt.player, calloutTextForClaim(evt.claim)); }
-    else if (evt.type === 'concealedKong' || evt.type === 'addKong') { playSound('kong'); addCallout(evt.player, '槓 Kong!'); }
+    else if (evt.type === 'claim') { playClaimSound(evt.claim === 'chow' ? 'chow' : evt.claim === 'kong' ? 'kong' : 'pong'); addCallout(evt.player, calloutTextForClaim(evt.claim)); }
+    else if (evt.type === 'concealedKong' || evt.type === 'addKong') { playClaimSound('kong'); addCallout(evt.player, '槓 Kong!'); }
     else if (evt.type === 'robKong') { playSound('chime'); addCallout(evt.player, '搶槓!'); }
     else if (evt.type === 'win') {
       var chicken = isChickenHand(evt.result);
@@ -5894,6 +6010,15 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
         return;
       }
       case 'toggle-sound': state.settings.sound = !state.settings.sound; persistSettings(); render(); return;
+      case 'preview-sound': {
+        var pk = el.getAttribute('data-kind'), pd = state.modal && state.modal.draft;
+        var pid = pd && pd[pk + 'Sound'];
+        if (pd && !pd.sound) { showToast('Turn on Sound effects to hear it.'); return; }
+        var wasOn = state.settings.sound; state.settings.sound = true;
+        playClaimById(CLAIM_PLAYERS[pid] ? pid : CLAIM_DEFAULT[pk]);
+        state.settings.sound = wasOn;
+        return;
+      }
       case 'toggle-music':
         state.settings.music = !state.settings.music; persistSettings();
         if (state.settings.music && state.screen === 'game') startMusic(); else stopMusic();

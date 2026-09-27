@@ -546,6 +546,19 @@
   function checkboxInput(field, checked) { return '<input type="checkbox" data-field="' + field + '"' + (checked ? ' checked' : '') + '/>'; }
   function numberSelect(field, value, min, max) { var opts = []; for (var i = min; i <= max; i++) opts.push([i, String(i)]); return selectInput(field, value, opts); }
 
+  // Settings → claim sounds (players live in app.js CLAIM_PLAYERS under the same ids)
+  var CLAIM_SOUNDS = {
+    chow: [['c1', 'Voice: "Chow! Chow! Chow!"'], ['c2', 'Voice: cartoon "chow chow chow"'], ['c3', 'Voice: announcer "CHOW!" + drum'],
+      ['c4', 'Synth: "chow-chow-chow"'], ['c5', 'Synth: "chow-chow-CHOW!" + sparkle'], ['nom', 'Nom nom nom (eating)']],
+    pong: [['p1', 'Voice: "Pongggg!"'], ['p2', 'Voice: deep "PUNG!" + drum'], ['p3', 'Synth: "Pongggg"'], ['p4', 'Synth: punchy "PUNG!"'], ['p5', 'Drum "pa-PONG" (original)']],
+    kong: [['k1', 'Voice: "Konggggg!"'], ['k2', 'Voice: "Kunggg!"'], ['k3', 'Synth: "KONGGGG" + gong'], ['k4', 'Synth: "Kunggg" robot'], ['k5', 'Voice "KONG!" + big gong'], ['orig', 'Drum stab (original)']]
+  };
+  function soundRow(kind, label, value) {
+    return '<label class="settings-row settings-sound-row"><span class="settings-label">' + label + '</span><span class="sound-pick">' +
+      selectInput(kind + 'Sound', value, CLAIM_SOUNDS[kind]) +
+      '<button type="button" class="btn btn-small btn-preview" data-action="preview-sound" data-kind="' + kind + '" title="Play this sound">▶</button></span></label>';
+  }
+
   var OPTIONAL_LABELS = {
     kong: 'Kong 槓', sevenPairs: 'Seven Pairs 七對子', luxurySevenPairs: 'Luxury Seven Pairs 豪華七對',
     knitted: 'Knitted Tiles 組合龍', lesserHonours: 'Lesser Honours 全不靠', greaterHonours: 'Greater Honours 七星不靠'
@@ -563,7 +576,10 @@
       settingsRow('Speed 速度', selectInput('speed', d.speed, [['relaxed', 'Relaxed'], ['normal', 'Normal'], ['fast', 'Fast']])) +
       settingsRow('Hints 提示', checkboxInput('hints', d.hints)) +
       settingsRow('Sound effects 音效', checkboxInput('sound', d.sound)) +
-      settingsRow('Music 音樂', checkboxInput('music', d.music !== false));
+      settingsRow('Music 音樂', checkboxInput('music', d.music !== false)) +
+      soundRow('chow', 'Chow sound 上', d.chowSound || 'c2') +
+      soundRow('pong', 'Pong sound 碰', d.pongSound || 'p1') +
+      soundRow('kong', 'Kong sound 槓', d.kongSound || 'k1');
     var display = '<div class="settings-subhead">Display 顯示</div>' +
       settingsRow('Tile &amp; table size 大小', selectInput('displaySize', d.displaySize || 'xlarge',
         [['standard', 'Standard'], ['large', 'Large'], ['xlarge', 'Extra large']])) +

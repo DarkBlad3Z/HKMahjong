@@ -14,6 +14,7 @@ Play Hong Kong Mahjong in your browser against three computer players. Scoring f
 - Arrange your hand your way: drag tiles (mouse or touch), **Sort 理牌** button (or the S key), Shift+←/→ to nudge the selected tile
 - Highlight matching tiles: point at (or tap) any tile to see every copy on the table
 - Display size: Standard, Large or Extra large tiles and text, for easier reading
+- Choose the Chow, Pong and Kong sounds in Settings (spoken "chow chow chow", "Pongggg!", "Konggggg!" and more, with a ▶ preview)
 - Upbeat chiptune music plus sound effects for Chow (nom nom nom), Pong, Kong, wins (fireworks), chicken hands 雞糊 (bawk!) and the start of a game (all synthesised in the browser — Music and Sound can be switched off separately)
 - Built-in rules reference, including the booklet's Fan combination tables
 - Settings: minimum Fan, game length, optional (†) hands, computer difficulty, display size, tile highlighting, where new tiles go
