@@ -390,7 +390,7 @@
     };
     clearTimers();
     try {
-      G = new HKMJ.Game({ settings: engineSettings, names: [draft.name || 'You', 'Julie', 'Bell', 'Patt'], humans: [0] });
+      G = new HKMJ.Game({ settings: engineSettings, names: [draft.name || 'You', 'Julie', 'Bel', 'Pat'], humans: [0] });
       attachEngineListeners();
       G.start();
     } catch (e) {
