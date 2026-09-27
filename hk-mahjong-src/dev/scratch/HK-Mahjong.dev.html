@@ -1,0 +1,3009 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hong Kong Mahjong 香港麻雀</title>
+<style>/* ---- src/ui/styles.css ---- */
+/* HK Mahjong — src/ui/styles.css
+ * Art direction: "a Hong Kong mahjong parlour at night" (UI_SPEC.md §2). All colours below are named there.
+ */
+
+:root {
+  --felt-centre: #11624b; --felt-edge: #0a3f31;
+  --rail-dark: #3a2217; --rail-light: #5b3522; --brass: #c9a44c; --brass-dark: #9c7a34;
+  --ivory-a: #fbf6e8; --ivory-b: #efe5cf; --jade-back: #1f7a5c; --jade-lip: #2e9a76;
+  --ink: #1c2230; --red: #c1272d; --blue: #1f4f9e; --green: #1f7a3a;
+  --paper: #fbf7ec; --paper-border: #cdbf9a;
+  --win-green: #2e7d32; --set-terracotta: #b5563b; --tile-blue: #2a64b0; --special-olive: #8a7420; --bonus-magenta: #a8327a; --gold-deep: #8a6a1e;
+  --lacquer: #2a1410; --lacquer-2: #4a2018;
+  --font-heading: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-ui: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-cjk: "Songti TC", "STSong", "Noto Serif CJK TC", "Noto Serif TC", "PMingLiU", "MingLiU", serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--rail-dark); overflow: hidden; }
+body { font-family: var(--font-ui); color: var(--ink); }
+#app { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+button { font-family: inherit; cursor: pointer; }
+.en { font-family: var(--font-ui); font-weight: 500; font-size: 0.78em; opacity: 0.85; }
+.zh { font-family: var(--font-cjk); }
+.fatal-error { color: #f2d9d9; background: #401515; padding: 24px; font-family: var(--font-ui); }
+
+/* ------------------------------------------------------------------ generic buttons */
+.btn {
+  font-family: var(--font-ui); font-size: 14px; padding: 8px 14px; border-radius: 6px;
+  background: var(--lacquer); color: var(--ivory-a); border: 1.5px solid var(--brass);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4); transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+.btn:hover { transform: translateY(-1px); box-shadow: 0 3px 6px rgba(0,0,0,0.5); }
+.btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.btn-brass {
+  background: linear-gradient(180deg, #d8b24c, #b58a2a); color: #2a1a0a; border-color: #8a6a1e;
+  box-shadow: 0 0 8px rgba(216,178,76,0.55), 0 2px 4px rgba(0,0,0,0.4); font-weight: 700;
+}
+.btn-icon { padding: 6px 9px; font-size: 15px; }
+.btn-small { font-size: 12px; padding: 5px 10px; }
+
+/* ------------------------------------------------------------------ table screen scaffold */
+.table-screen { position: absolute; inset: 0; background: linear-gradient(180deg, var(--rail-light), var(--rail-dark)); }
+.canvas-outer { position: absolute; inset: 0; overflow: hidden; }
+.canvas-scale {
+  position: absolute; top: 50%; left: 50%; width: 1440px; height: 900px; transform: translate(-50%, -50%);
+  display: flex; border: 10px solid var(--rail-dark); border-radius: 14px;
+  background: linear-gradient(135deg, var(--rail-dark), var(--rail-light));
+  box-shadow: inset 0 0 0 3px var(--brass), 0 20px 60px rgba(0,0,0,0.6);
+}
+.felt { position: relative; width: 1150px; height: 878px; margin: 0; border-radius: 8px;
+  background: radial-gradient(ellipse at center, var(--felt-centre) 0%, var(--felt-edge) 72%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.015) 0 2px, transparent 2px 6px),
+    repeating-linear-gradient(-45deg, rgba(0,0,0,0.02) 0 2px, transparent 2px 6px);
+  box-shadow: inset 0 0 90px rgba(0,0,0,0.55); overflow: hidden;
+}
+.sidebar { width: 280px; height: 878px; background: var(--paper); border-left: 3px solid var(--brass);
+  display: flex; flex-direction: column; padding: 10px 10px 8px; gap: 8px; font-family: var(--font-ui); overflow: hidden; }
+
+/* ------------------------------------------------------------------ tiles */
+.tile { position: relative; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 6px; background: linear-gradient(160deg, var(--ivory-a), var(--ivory-b));
+  box-shadow: 0 2px 0 var(--jade-lip), 0 4px 0 var(--jade-back), 0 6px 6px rgba(0,0,0,0.45);
+  border: 1px solid rgba(0,0,0,0.15); margin: 1px 2px; vertical-align: middle;
+  transition: transform 0.1s ease, box-shadow 0.1s ease; padding: 0;
+}
+.tile-svg { width: 100%; height: 100%; display: block; }
+.tile-back { background: linear-gradient(160deg, #2a9678, var(--jade-back)); }
+.tile.tile-back .tile-svg { opacity: 0.95; }
+
+.tile-hand, .tile.tile-hand { width: 50px; height: 68px; }
+.tile-meld-you, .tile.tile-meld-you { width: 40px; height: 55px; }
+.tile-meld-opp, .tile.tile-meld-opp { width: 34px; height: 47px; }
+.tile-river, .tile.tile-river { width: 32px; height: 44px; margin: 1px; }
+.tile-opphand, .tile.tile-opphand { width: 24px; height: 33px; margin: 0 -3px; }
+.tile-flower, .tile.tile-flower { width: 26px; height: 35px; }
+.tile-wait, .tile.tile-wait { width: 30px; height: 41px; }
+.tile-rules, .tile.tile-rules { width: 30px; height: 41px; }
+.tile-result, .tile.tile-result { width: 34px; height: 47px; }
+.tile-reveal, .tile.tile-reveal { width: 26px; height: 35px; }
+.tile-picker, .tile.tile-picker { width: 34px; height: 47px; }
+.tile-claim, .tile.tile-claim { width: 46px; height: 62px; }
+.tile-meld { width: 34px; height: 47px; }
+
+button.tile { border: 1px solid rgba(0,0,0,0.15); }
+.hand-tiles.interactive button.tile:hover { transform: translateY(-6px); cursor: pointer; }
+.hand-tiles.interactive button.tile:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.tile.tile-selected { transform: translateY(-14px); box-shadow: 0 0 0 2px var(--brass), 0 2px 0 var(--jade-lip), 0 4px 0 var(--jade-back), 0 10px 14px rgba(0,0,0,0.5); }
+.tile.tile-drawn { margin-left: 14px; }
+.tile.hint-suggested { box-shadow: 0 0 0 2px #ffd76a, 0 0 10px 3px rgba(255,215,106,0.8), 0 2px 0 var(--jade-lip), 0 4px 0 var(--jade-back); }
+
+.tile-marker { position: absolute; left: 50%; bottom: -7px; width: 0; height: 0; transform: translateX(-50%); }
+.win-triangle .tile-marker, .tile-marker.win-triangle {
+  border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 8px solid var(--red);
+  bottom: -9px;
+}
+
+.tile-row { display: inline-flex; flex-wrap: wrap; }
+.melds { display: inline-flex; gap: 4px; margin-left: 6px; }
+.meld { display: inline-flex; }
+.flowers { display: inline-flex; margin-left: 6px; }
+
+/* ------------------------------------------------------------------ seats + name plates */
+.seat { position: absolute; display: flex; flex-direction: column; align-items: center; }
+.seat-bottom { left: 50%; bottom: 4px; transform: translateX(-50%); align-items: center; width: 900px; }
+.seat-top { left: 50%; top: 8px; transform: translateX(-50%); width: 700px; }
+.seat-right { right: 6px; top: 50%; transform: translateY(-50%); width: 300px; align-items: flex-end; }
+.seat-left { left: 6px; top: 50%; transform: translateY(-50%); width: 300px; align-items: flex-start; }
+
+.name-plate { display: flex; align-items: center; gap: 6px; background: rgba(10,30,24,0.55); border: 1px solid var(--brass);
+  border-radius: 20px; padding: 3px 10px; font-family: var(--font-ui); color: var(--ivory-a); font-size: 13px; margin-bottom: 4px; }
+.name-plate.is-turn { box-shadow: 0 0 10px 2px rgba(201,164,76,0.7); }
+.seat-wind-circle { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--brass); color: var(--ink); font-family: var(--font-cjk); font-weight: 700; font-size: 12px; }
+.seat-wind-circle.small { width: 16px; height: 16px; font-size: 10px; }
+.player-name { font-weight: 600; }
+.badge-dealer { font-family: var(--font-cjk); background: var(--red); color: #fff; border-radius: 4px; padding: 1px 4px; font-size: 11px; }
+.badge-dealer.small { font-size: 9px; padding: 0 3px; }
+.score { font-weight: 700; color: #ffe9b0; }
+.last-action { font-size: 11px; opacity: 0.85; font-family: var(--font-cjk); }
+.thinking { display: inline-flex; gap: 2px; }
+.thinking span { width: 4px; height: 4px; border-radius: 50%; background: var(--brass); animation: hkmj-think 1s infinite ease-in-out; }
+.thinking span:nth-child(2) { animation-delay: 0.15s; }
+.thinking span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes hkmj-think { 0%, 100% { opacity: 0.25; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
+
+.seat-meta { display: flex; align-items: center; min-height: 40px; margin-bottom: 2px; }
+.hand-tiles { display: flex; justify-content: center; }
+.opp-hand { display: flex; }
+.seat-right .opp-hand, .seat-right .seat-meta { flex-direction: row-reverse; }
+
+/* ------------------------------------------------------------------ rivers */
+.river { display: flex; flex-wrap: wrap; width: 220px; gap: 0; min-height: 48px; }
+.seat-right .river, .seat-left .river { width: 190px; }
+.tile.river-latest { box-shadow: 0 0 0 2px var(--brass), 0 2px 0 var(--jade-lip), 0 4px 0 var(--jade-back), 0 4px 8px rgba(0,0,0,0.5); transform: scale(1.08); }
+.tile.river-pulse { animation: hkmj-pulse 1.1s infinite ease-in-out; }
+@keyframes hkmj-pulse { 0%, 100% { box-shadow: 0 0 0 2px var(--brass), 0 2px 0 var(--jade-lip), 0 4px 0 var(--jade-back); } 50% { box-shadow: 0 0 12px 4px rgba(216,178,76,0.85), 0 2px 0 var(--jade-lip), 0 4px 0 var(--jade-back); } }
+
+/* ------------------------------------------------------------------ centre plate */
+.centre-plate { position: absolute; left: 50%; top: 50%; width: 190px; height: 190px; transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 35% 30%, #4a3220, #2a1a10); border: 4px solid var(--brass); border-radius: 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--ivory-a);
+  font-family: var(--font-ui); text-align: center; box-shadow: 0 6px 18px rgba(0,0,0,0.6), inset 0 0 20px rgba(0,0,0,0.5); gap: 2px; }
+.plate-round { font-family: var(--font-heading); font-weight: 700; font-size: 14px; color: #ffe9b0; }
+.plate-hand, .plate-wall { font-size: 12px; opacity: 0.9; }
+.plate-dice { margin-top: 4px; display: flex; gap: 4px; }
+.die { width: 16px; height: 16px; background: #fff; color: var(--ink); border-radius: 3px; font-size: 11px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; }
+.repeat-count { font-size: 11px; color: var(--brass); }
+.plate-wind { position: absolute; font-family: var(--font-cjk); font-size: 16px; color: var(--brass); }
+.plate-wind-e { top: 6px; left: 50%; transform: translateX(-50%); }
+.plate-wind-s { right: 6px; top: 50%; transform: translateY(-50%); }
+.plate-wind-w { bottom: 6px; left: 50%; transform: translateX(-50%); }
+.plate-wind-n { left: 6px; top: 50%; transform: translateY(-50%); }
+
+.claim-banner { position: absolute; left: 50%; top: calc(50% - 150px); transform: translateX(-50%);
+  background: rgba(10,20,16,0.85); border: 1px solid var(--brass); border-radius: 8px; padding: 8px 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--ivory-a); font-size: 12px; z-index: 5; }
+
+/* ------------------------------------------------------------------ action bar */
+.action-bar { position: absolute; left: 50%; bottom: 116px; transform: translateX(-50%);
+  display: flex; gap: 8px; background: rgba(10,20,16,0.7); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--brass); z-index: 6; }
+.btn-action { background: var(--lacquer); color: var(--ivory-a); border: 1.5px solid var(--brass); font-family: var(--font-cjk), var(--font-ui); font-size: 15px; padding: 8px 12px; border-radius: 6px; position: relative; }
+.btn-action.hint-suggested { box-shadow: 0 0 0 2px #ffd76a, 0 0 10px 3px rgba(255,215,106,0.8); }
+.btn-win, .btn-selfWin, .btn-flowerWin { background: linear-gradient(180deg, #d8b24c, #b58a2a); color: #2a1a0a; border-color: #8a6a1e; box-shadow: 0 0 10px rgba(216,178,76,0.6); font-weight: 700; }
+.fan-badge { display: inline-block; margin-left: 6px; background: var(--red); color: #fff; border-radius: 10px; padding: 1px 6px; font-size: 11px; font-family: var(--font-ui); }
+.btn-discard { background: linear-gradient(180deg, var(--lacquer-2), var(--lacquer)); color: var(--ivory-a); border: 1.5px solid var(--brass); font-size: 15px; padding: 8px 14px; border-radius: 6px; font-family: var(--font-cjk), var(--font-ui); }
+.btn-hint { background: #274b3d; }
+
+/* ------------------------------------------------------------------ picker overlay */
+.picker-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 20; }
+.picker-box { background: var(--paper); border: 2px solid var(--paper-border); border-radius: 10px; padding: 14px; min-width: 260px; text-align: center; }
+.picker-title { font-family: var(--font-heading); font-weight: 700; margin-bottom: 8px; color: var(--special-olive); }
+.picker-rows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.picker-option { display: flex; justify-content: center; background: #fff; border: 1px solid var(--paper-border); border-radius: 6px; padding: 4px; }
+.picker-option:hover { border-color: var(--brass); }
+
+/* ------------------------------------------------------------------ sidebar contents */
+.scoreboard { background: #fff; border: 1px solid var(--paper-border); border-radius: 8px; padding: 6px; }
+.score-row { display: flex; align-items: center; gap: 6px; padding: 4px 2px; font-size: 13px; border-bottom: 1px dashed var(--paper-border); }
+.score-row:last-child { border-bottom: none; }
+.score-row.is-you { background: #fbf1d8; border-radius: 4px; }
+.sb-rank { font-weight: 700; color: var(--special-olive); width: 22px; }
+.sb-name { flex: 1; font-weight: 600; }
+.sb-score { font-weight: 700; }
+.sidebar-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.sidebar-buttons .btn { flex: 1 1 auto; font-size: 12px; padding: 6px 8px; }
+.hint-panel { background: #fff; border: 1px solid var(--paper-border); border-radius: 8px; padding: 6px 8px; font-size: 12px; }
+.hint-panel-empty { color: #888; font-style: italic; }
+.hint-title { font-family: var(--font-cjk); font-weight: 700; color: var(--win-green); margin-bottom: 4px; }
+.wait-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.wait-row.wait-invalid { opacity: 0.55; }
+.wait-left { font-size: 11px; color: #666; }
+.wait-fan { font-size: 11px; margin-left: auto; font-weight: 600; }
+.log-panel { flex: 1; overflow-y: auto; background: #fff; border: 1px solid var(--paper-border); border-radius: 8px; padding: 6px 8px; font-size: 12px; display: flex; flex-direction: column; gap: 2px; }
+.log-line { color: #444; }
+.log-line.log-win { color: var(--win-green); font-weight: 700; }
+.log-line.log-claim { color: var(--tile-blue); }
+
+/* ------------------------------------------------------------------ toast + callouts */
+.toast { position: absolute; left: 50%; top: 16px; transform: translateX(-50%); background: rgba(20,10,8,0.9);
+  color: #ffe9b0; border: 1px solid var(--brass); border-radius: 8px; padding: 8px 14px; font-size: 13px; z-index: 30; text-align: center; }
+.toast-line + .toast-line { margin-top: 4px; }
+.callout { position: absolute; font-family: var(--font-cjk); font-size: 26px; font-weight: 700; color: #fff4d6;
+  text-shadow: 0 0 8px rgba(216,178,76,0.9), 0 2px 3px rgba(0,0,0,0.6); z-index: 25; pointer-events: none;
+  animation: hkmj-callout 1.1s ease-out forwards; }
+.callout.seat-bottom { left: 50%; bottom: 220px; transform: translateX(-50%); }
+.callout.seat-top { left: 50%; top: 120px; transform: translateX(-50%); }
+.callout.seat-right { right: 260px; top: 45%; }
+.callout.seat-left { left: 260px; top: 45%; }
+@keyframes hkmj-callout { 0% { opacity: 0; transform: scale(0.7) translateY(6px); } 20% { opacity: 1; transform: scale(1.08); } 75% { opacity: 1; } 100% { opacity: 0; transform: scale(1) translateY(-10px); } }
+
+/* ------------------------------------------------------------------ start screen */
+.screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at center, var(--felt-centre), var(--felt-edge)); }
+.start-card { background: var(--paper); border: 2px solid var(--paper-border); border-radius: 14px; padding: 34px 46px;
+  text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+.cjk-title { font-family: var(--font-cjk); font-size: 44px; margin: 0; color: var(--special-olive); letter-spacing: 2px; }
+.en-title { font-family: var(--font-heading); font-size: 20px; margin: 4px 0 0; color: var(--win-green); font-weight: 600; }
+.subtitle { font-size: 13px; color: #6b6249; margin: 10px 0 22px; }
+.start-buttons { display: flex; flex-direction: column; gap: 10px; }
+
+/* ------------------------------------------------------------------ modals */
+.modal-overlay { position: absolute; inset: 0; background: rgba(5,10,8,0.6); display: flex; align-items: center; justify-content: center; z-index: 40; }
+.modal { background: var(--paper); border: 2px solid var(--paper-border); border-radius: 12px; padding: 20px 26px;
+  max-width: 720px; max-height: 84vh; overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,0.55); }
+.modal-head { display: flex; justify-content: space-between; align-items: center; }
+.modal-title { font-family: var(--font-heading); color: var(--special-olive); margin: 0 0 6px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+
+.settings-modal { width: 560px; }
+.settings-note { font-size: 12px; color: #6b6249; font-style: italic; margin: 0 0 10px; }
+.settings-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+.settings-row { display: flex; flex-direction: column; gap: 3px; font-size: 12px; font-weight: 600; }
+.settings-row select, .settings-row input[type=text] { font-size: 13px; padding: 5px; border: 1px solid var(--paper-border); border-radius: 5px; }
+.settings-row input[type=checkbox] { width: 18px; height: 18px; }
+.settings-optional { margin-top: 12px; grid-template-columns: 1fr 1fr 1fr; }
+.settings-subhead { grid-column: 1 / -1; font-family: var(--font-heading); color: var(--special-olive); border-top: 1px solid var(--paper-border); padding-top: 8px; }
+.settings-confirm { margin-top: 14px; background: #fdf0d8; border: 1px solid var(--brass); border-radius: 8px; padding: 10px; text-align: center; }
+.settings-confirm p { margin: 0 0 8px; font-size: 13px; }
+
+.rules-modal { width: 760px; }
+.rules-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 2px solid var(--paper-border); margin-bottom: 10px; padding-bottom: 6px; }
+.rules-tab { background: #fff; border: 1px solid var(--paper-border); border-radius: 14px; padding: 5px 11px; font-size: 12px; }
+.rules-tab.active { background: var(--special-olive); color: #fff; border-color: var(--special-olive); }
+.rules-section h3 { font-family: var(--font-heading); color: var(--win-green); margin: 14px 0 4px; }
+.rules-section p { font-size: 13px; line-height: 1.5; margin: 0 0 8px; }
+.rules-cards { display: flex; flex-direction: column; gap: 10px; }
+.rules-card { border: 1px solid var(--paper-border); border-radius: 8px; padding: 10px 12px; background: #fff; }
+.rules-card-optional { border-style: dashed; }
+.rules-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.fan-pill { background: var(--ink); color: #fff; border-radius: 10px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+.rules-card-name { font-weight: 700; }
+.opt-state { margin-left: auto; font-size: 11px; border-radius: 8px; padding: 1px 7px; }
+.opt-state.opt-on { background: #d9efd6; color: var(--win-green); }
+.opt-state.opt-off { background: #f1d9d9; color: #963; }
+.rules-card-desc { font-size: 12.5px; line-height: 1.45; }
+.rules-card-note, .rules-example { margin-top: 6px; font-size: 11.5px; color: #6b6249; }
+.rules-color-green .rules-card { border-left: 4px solid var(--win-green); }
+.rules-color-terracotta .rules-card { border-left: 4px solid var(--set-terracotta); }
+.rules-color-blue .rules-card { border-left: 4px solid var(--tile-blue); }
+.rules-color-olive .rules-card { border-left: 4px solid var(--special-olive); }
+.rules-color-magenta .rules-card { border-left: 4px solid var(--bonus-magenta); }
+.payment-table { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; margin-bottom: 10px; }
+.pay-row { display: flex; justify-content: space-between; background: #fff; border: 1px solid var(--paper-border); padding: 3px 8px; font-size: 12px; border-radius: 4px; }
+.rules-notes p { font-size: 12px; margin: 0 0 6px; }
+.rules-intro { font-size: 12.5px; color: #6b6249; }
+.fan-chain { margin-bottom: 10px; }
+.fan-chain-title { font-weight: 700; color: var(--set-terracotta); margin-bottom: 3px; }
+.fan-chain-steps { display: flex; flex-wrap: wrap; gap: 6px; }
+.fan-chain-step { background: #fff; border: 1px solid var(--paper-border); border-radius: 6px; padding: 2px 8px; font-size: 11.5px; }
+
+.result-modal { width: 640px; text-align: center; }
+.winning-hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 10px 0; padding: 10px; background: #fff; border: 1px solid var(--paper-border); border-radius: 8px; }
+.result-group { display: inline-flex; padding: 2px; border-radius: 4px; }
+.result-group.from-meld { background: rgba(178,86,59,0.08); }
+.fan-table { text-align: left; margin: 10px 0; border: 1px solid var(--paper-border); border-radius: 8px; overflow: hidden; }
+.fan-row { display: flex; gap: 8px; padding: 5px 10px; font-size: 12.5px; border-bottom: 1px solid #eee; background: #fff; }
+.fan-row .fan-name { flex: 1; font-weight: 600; }
+.fan-row .fan-detail { flex: 1; color: #777; font-size: 11.5px; }
+.fan-row .fan-value { font-weight: 700; width: 28px; text-align: right; }
+.fan-row-replaced { background: #f3f0e6; color: #999; text-decoration: line-through; }
+.fan-row-replaced .fan-detail { text-decoration: none; font-style: italic; }
+.fan-total { text-align: right; padding: 6px 10px; font-weight: 700; background: var(--special-olive); color: #fff; }
+.payment-lines { display: flex; justify-content: center; gap: 14px; font-size: 13px; margin-bottom: 8px; }
+.payment-line-win { color: var(--win-green); font-weight: 700; }
+.scores-after { display: flex; justify-content: center; gap: 16px; margin-bottom: 10px; font-size: 12.5px; }
+.score-after-row { display: flex; flex-direction: column; align-items: center; }
+.score-after-row .delta { color: #888; font-size: 11px; }
+.next-deal { font-size: 13px; font-style: italic; color: #6b6249; margin-bottom: 6px; }
+.revealed-hands { text-align: left; margin-top: 10px; border-top: 1px solid var(--paper-border); padding-top: 8px; }
+.revealed-hand-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap; }
+.revealed-name { width: 60px; font-weight: 600; font-size: 12px; }
+.result-sub { font-size: 13px; color: #6b6249; margin-bottom: 6px; }
+
+.gameover-modal { width: 420px; text-align: center; }
+.standings { margin: 14px 0; }
+.standing-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--paper-border); font-size: 14px; }
+.standing-row.is-you { background: #fbf1d8; }
+.standing-rank { font-weight: 700; color: var(--special-olive); width: 30px; }
+.standing-name { flex: 1; text-align: left; font-weight: 600; }
+.standing-score { font-weight: 700; }
+
+.confirm-modal { width: 380px; text-align: center; }
+
+/* ------------------------------------------------------------------ small screens */
+@media (max-width: 1100px) {
+  .sidebar { width: 240px; }
+}
+</style>
+</head>
+<body>
+<div id="tile-sprite" aria-hidden="true"></div>
+<div id="app"></div>
+<script>/* ---- src/core/tiles.js ---- */
+/* HK Mahjong — core/tiles.js
+ * Tile model shared by the engine, scoring, AI and UI.  (Owner: orchestrator — do not change kind ids.)
+ *
+ * Tile KIND ids (integers):
+ *   0-8    Characters / Man 萬  1-9
+ *   9-17   Dots 筒              1-9
+ *   18-26  Sticks 索            1-9
+ *   27-30  Winds   東 南 西 北   (East, South, West, North)
+ *   31-33  Dragons 中 發 白      (Red, Green, White)
+ *   34-37  Flowers 梅 蘭 菊 竹   (numbers 1-4)
+ *   38-41  Seasons 春 夏 秋 冬   (numbers 1-4)
+ *
+ * Text notation (tests, logs, debugging):
+ *   "123m 456p 789s"  suits m / p / s
+ *   "1234z" or 東南西北   winds   (1z 東, 2z 南, 3z 西, 4z 北)
+ *   "567z"  or 中發白     dragons (5z 中, 6z 發, 7z 白)
+ *   "1234f" or 梅蘭菊竹   flowers,  "1234x" or 春夏秋冬 seasons
+ *   Whitespace is ignored.  Simplified 发/兰 are accepted as aliases.
+ */
+(function (root) {
+  'use strict';
+  var HKMJ = root.HKMJ || (root.HKMJ = {});
+
+  var MAN = 0, PIN = 9, SOU = 18;
+  var EAST = 27, SOUTH = 28, WEST = 29, NORTH = 30;
+  var RED = 31, GREEN = 32, WHITE = 33;
+  var FLOWER0 = 34, SEASON0 = 38;
+  var PLAYABLE_KINDS = 34, ALL_KINDS = 42;
+
+  var SUIT_LETTERS = ['m', 'p', 's'];
+  var SUIT_NAMES = ['Characters', 'Dots', 'Sticks'];
+  var SUIT_ZH = ['萬', '筒', '索'];
+  var NUM_ZH = ['一', '二', '三', '四', '五', '六', '七', '八', '九'];
+  var HONOUR_ZH = ['東', '南', '西', '北', '中', '發', '白'];
+  var HONOUR_NAMES = ['East Wind', 'South Wind', 'West Wind', 'North Wind', 'Red Dragon', 'Green Dragon', 'White Dragon'];
+  var WIND_ZH = ['東', '南', '西', '北'];
+  var WIND_NAMES = ['East', 'South', 'West', 'North'];
+  var DRAGON_ZH = ['中', '發', '白'];
+  var DRAGON_NAMES = ['Red', 'Green', 'White'];
+  var FLOWER_ZH = ['梅', '蘭', '菊', '竹'];
+  var FLOWER_NAMES = ['Plum', 'Orchid', 'Chrysanthemum', 'Bamboo'];
+  var SEASON_ZH = ['春', '夏', '秋', '冬'];
+  var SEASON_NAMES = ['Spring', 'Summer', 'Autumn', 'Winter'];
+
+  function isSuit(k) { return k >= 0 && k < 27; }
+  function suitOf(k) { return (k >= 0 && k < 27) ? Math.floor(k / 9) : -1; } // 0 m, 1 p, 2 s
+  function rankOf(k) { return (k >= 0 && k < 27) ? (k % 9) + 1 : 0; }
+  function isHonour(k) { return k >= 27 && k <= 33; }
+  function isWind(k) { return k >= 27 && k <= 30; }
+  function isDragon(k) { return k >= 31 && k <= 33; }
+  function isBonus(k) { return k >= 34 && k <= 41; }
+  function isFlower(k) { return k >= 34 && k <= 37; }
+  function isSeason(k) { return k >= 38 && k <= 41; }
+  /** 1..4 for flowers/seasons (matches seat number East 1, South 2, West 3, North 4), else 0 */
+  function bonusNumber(k) { return isBonus(k) ? ((k - 34) % 4) + 1 : 0; }
+  function isTerminal(k) { return isSuit(k) && (k % 9 === 0 || k % 9 === 8); }
+  function isTerminalOrHonour(k) { return isTerminal(k) || isHonour(k); }
+  /** suit 0..2, rank 1..9 */
+  function tileOf(suit, rank) { return suit * 9 + rank - 1; }
+  /** wind index 0..3 (E,S,W,N) -> kind */
+  function windKind(w) { return EAST + w; }
+  function windIndex(k) { return isWind(k) ? k - EAST : -1; }
+  function dragonIndex(k) { return isDragon(k) ? k - RED : -1; }
+
+  function name(k) {
+    if (isSuit(k)) return rankOf(k) + ' ' + SUIT_NAMES[suitOf(k)];
+    if (isHonour(k)) return HONOUR_NAMES[k - 27];
+    if (isFlower(k)) return FLOWER_NAMES[k - FLOWER0] + ' (Flower ' + bonusNumber(k) + ')';
+    if (isSeason(k)) return SEASON_NAMES[k - SEASON0] + ' (Season ' + bonusNumber(k) + ')';
+    return '?';
+  }
+  function zh(k) {
+    if (isSuit(k)) return NUM_ZH[rankOf(k) - 1] + SUIT_ZH[suitOf(k)];
+    if (isHonour(k)) return HONOUR_ZH[k - 27];
+    if (isFlower(k)) return FLOWER_ZH[k - FLOWER0];
+    if (isSeason(k)) return SEASON_ZH[k - SEASON0];
+    return '?';
+  }
+  /** Compact code: '5p', '東', '梅' */
+  function code(k) {
+    if (isSuit(k)) return rankOf(k) + SUIT_LETTERS[suitOf(k)];
+    return zh(k);
+  }
+
+  var CHAR_MAP = {
+    '東': EAST, '南': SOUTH, '西': WEST, '北': NORTH,
+    '中': RED, '發': GREEN, '发': GREEN, '白': WHITE,
+    '梅': 34, '蘭': 35, '兰': 35, '菊': 36, '竹': 37,
+    '春': 38, '夏': 39, '秋': 40, '冬': 41
+  };
+
+  /** Parse notation into an array of kinds. Throws on bad input. */
+  function parse(str) {
+    var out = [];
+    var digits = [];
+    var s = String(str || '');
+    for (var i = 0; i < s.length; i++) {
+      var ch = s[i];
+      if (ch === ' ' || ch === '\t' || ch === '\n' || ch === ',') continue;
+      if (ch >= '0' && ch <= '9') { digits.push(+ch); continue; }
+      if (CHAR_MAP.hasOwnProperty(ch)) {
+        if (digits.length) throw new Error('Tiles.parse: digits before honour char in "' + s + '"');
+        out.push(CHAR_MAP[ch]);
+        continue;
+      }
+      var suit = SUIT_LETTERS.indexOf(ch);
+      if (suit >= 0) {
+        if (!digits.length) throw new Error('Tiles.parse: suit letter without digits in "' + s + '"');
+        digits.forEach(function (d) {
+          if (d < 1 || d > 9) throw new Error('Tiles.parse: bad rank ' + d);
+          out.push(tileOf(suit, d));
+        });
+        digits = [];
+        continue;
+      }
+      if (ch === 'z' || ch === 'f' || ch === 'x') {
+        if (!digits.length) throw new Error('Tiles.parse: "' + ch + '" without digits');
+        digits.forEach(function (d) {
+          if (ch === 'z') { if (d < 1 || d > 7) throw new Error('Tiles.parse: bad honour ' + d); out.push(26 + d); }
+          else if (ch === 'f') { if (d < 1 || d > 4) throw new Error('Tiles.parse: bad flower ' + d); out.push(FLOWER0 + d - 1); }
+          else { if (d < 1 || d > 4) throw new Error('Tiles.parse: bad season ' + d); out.push(SEASON0 + d - 1); }
+        });
+        digits = [];
+        continue;
+      }
+      throw new Error('Tiles.parse: unexpected "' + ch + '" in "' + s + '"');
+    }
+    if (digits.length) throw new Error('Tiles.parse: trailing digits in "' + s + '"');
+    return out;
+  }
+
+  /** Format kinds into compact notation, e.g. [0,1,2,27,27] -> "123m東東" (input order is sorted first). */
+  function format(kinds) {
+    var ks = sort(kinds);
+    var out = '';
+    var run = [];
+    var runSuit = -1;
+    function flush() { if (run.length) { out += run.join('') + SUIT_LETTERS[runSuit]; run = []; } }
+    for (var i = 0; i < ks.length; i++) {
+      var k = ks[i];
+      if (isSuit(k)) {
+        if (suitOf(k) !== runSuit) { flush(); runSuit = suitOf(k); }
+        run.push(rankOf(k));
+      } else { flush(); runSuit = -1; out += zh(k); }
+    }
+    flush();
+    return out;
+  }
+
+  function sort(kinds) { return kinds.slice().sort(function (a, b) { return a - b; }); }
+
+  /** The 144 physical tiles as kinds (4 of each playable kind + 8 bonus tiles). */
+  function fullSet() {
+    var a = [];
+    for (var k = 0; k < PLAYABLE_KINDS; k++) for (var c = 0; c < 4; c++) a.push(k);
+    for (var b = 34; b < ALL_KINDS; b++) a.push(b);
+    return a;
+  }
+
+  /** Count array of length 34 (bonus kinds ignored). */
+  function counts(kinds) {
+    var c = new Array(PLAYABLE_KINDS);
+    for (var i = 0; i < PLAYABLE_KINDS; i++) c[i] = 0;
+    for (var j = 0; j < kinds.length; j++) if (kinds[j] < PLAYABLE_KINDS) c[kinds[j]]++;
+    return c;
+  }
+
+  HKMJ.Tiles = {
+    MAN: MAN, PIN: PIN, SOU: SOU,
+    EAST: EAST, SOUTH: SOUTH, WEST: WEST, NORTH: NORTH,
+    RED: RED, GREEN: GREEN, WHITE: WHITE,
+    FLOWER0: FLOWER0, SEASON0: SEASON0,
+    PLAYABLE_KINDS: PLAYABLE_KINDS, ALL_KINDS: ALL_KINDS,
+    SUIT_LETTERS: SUIT_LETTERS, SUIT_NAMES: SUIT_NAMES, SUIT_ZH: SUIT_ZH, NUM_ZH: NUM_ZH,
+    HONOUR_ZH: HONOUR_ZH, HONOUR_NAMES: HONOUR_NAMES,
+    WIND_ZH: WIND_ZH, WIND_NAMES: WIND_NAMES, DRAGON_ZH: DRAGON_ZH, DRAGON_NAMES: DRAGON_NAMES,
+    FLOWER_ZH: FLOWER_ZH, FLOWER_NAMES: FLOWER_NAMES, SEASON_ZH: SEASON_ZH, SEASON_NAMES: SEASON_NAMES,
+    isSuit: isSuit, suitOf: suitOf, rankOf: rankOf, isHonour: isHonour, isWind: isWind, isDragon: isDragon,
+    isBonus: isBonus, isFlower: isFlower, isSeason: isSeason, bonusNumber: bonusNumber,
+    isTerminal: isTerminal, isTerminalOrHonour: isTerminalOrHonour,
+    tileOf: tileOf, windKind: windKind, windIndex: windIndex, dragonIndex: dragonIndex,
+    name: name, zh: zh, code: code, parse: parse, format: format, sort: sort, fullSet: fullSet, counts: counts
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = HKMJ.Tiles;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+;
+/* ---- src/core/rng.js ---- */
+/* HK Mahjong — core/rng.js
+ * Small seeded PRNG (mulberry32) so games, tests and simulations are reproducible.
+ *   var r = HKMJ.RNG(12345);  r.next() -> [0,1)   r.int(n) -> 0..n-1   r.shuffle(arr) (in place, returns arr)
+ *   r.getState() -> uint32 ;  HKMJ.RNG.fromState(uint32) -> generator continuing from that state (for save/resume)
+ */
+(function (root) {
+  'use strict';
+  var HKMJ = root.HKMJ || (root.HKMJ = {});
+
+  function hashSeed(seed) {
+    if (seed === undefined || seed === null) return (Date.now() ^ 0x9E3779B9) >>> 0;
+    if (typeof seed === 'string') {
+      var h = 2166136261;
+      for (var i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); }
+      return h >>> 0;
+    }
+    return seed >>> 0;
+  }
+
+  function make(state) {
+    var s = state >>> 0;
+    function next() {
+      s = (s + 0x6D2B79F5) >>> 0;
+      var t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+    function int(n) { return Math.floor(next() * n); }
+    function shuffle(a) {
+      for (var i = a.length - 1; i > 0; i--) { var j = int(i + 1); var tmp = a[i]; a[i] = a[j]; a[j] = tmp; }
+      return a;
+    }
+    function pick(a) { return a[int(a.length)]; }
+    function getState() { return s >>> 0; }
+    return { next: next, int: int, shuffle: shuffle, pick: pick, getState: getState };
+  }
+
+  function RNG(seed) {
+    var r = make(hashSeed(seed));
+    r.seed = r.getState();
+    return r;
+  }
+  RNG.fromState = function (state) { var r = make(state); r.seed = null; return r; };
+
+  HKMJ.RNG = RNG;
+  if (typeof module !== 'undefined' && module.exports) module.exports = RNG;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+;
+/* ---- dev/mock-engine.js ---- */
+/* HK Mahjong — dev/mock-engine.js
+ * STAND-IN for src/core/{hand,scoring,engine,ai}.js, implementing the SPEC.md §5/§6 contract exactly (same
+ * shapes/field names) so the UI can be built and tested before the real back end lands, and swapped later with
+ * NO UI changes. NEVER bundled into the production build (see dev/build.dev.manifest.json vs build.manifest.json).
+ *
+ * SIMPLIFICATIONS (documented, not a substitute for the real src/core/scoring.js):
+ *  - Winning shapes supported: standard (4 sets + pair), Seven Pairs / Luxury Seven Pairs, Thirteen Orphans.
+ *    NOT implemented: Knitted Tiles, Lesser/Greater Honours, Nine Gates. (Rare paths; real scoring.js adds them.)
+ *  - Fan catalogue covers: selfPick/kongReplacement/doubleKong, concealed, robKong, moon, allSequences,
+ *    allTriplets, dragon/smallThreeDragons/bigThreeDragons, roundWind/seatWind/smallFourWinds/bigFourWinds,
+ *    mixedFlush/fullFlush, kong†, sevenPairs/luxurySevenPairs, bonus tiles (noFlowers/seatFlower/allFlowers/
+ *    allSeasons), sevenFlowers/eightFlowers, and the three Blessings.
+ *    NOT implemented: allConcealedTriplets, allQuadruplets, mixedTerminals/allTerminals/allHonours and their
+ *    "includes/replaces" interactions. This is enough to drive realistic, varied UI states (the "replaced" list
+ *    is exercised via the interactions that ARE implemented: kongReplacement/doubleKong, small/bigThreeDragons,
+ *    small/bigFourWinds, fullFlush).
+ *  - Per the booklet's own language, "flat" patterns (the three Blessings, Thirteen Orphans, Seven/Eight Flowers)
+ *    score ONLY their own flat value — nothing else is added on top. This matches the booklet's worked examples.
+ *  - AI is a simple, deterministic efficiency+safety heuristic — legal, non-degenerate, but not the fan-planning
+ *    AI required of the real src/core/ai.js.
+ */
+(function (root) {
+  'use strict';
+  var HKMJ = root.HKMJ || (root.HKMJ = {});
+  var T = HKMJ.Tiles;
+
+  // ------------------------------------------------------------------ settings
+
+  var DEFAULT_SETTINGS = {
+    minFan: 3, payment: 'full', unit: 'points', rounds: 4, aiLevel: 'normal', startingScore: 0,
+    optional: { kong: false, sevenPairs: true, luxurySevenPairs: true, knitted: true, lesserHonours: true, greaterHonours: true }
+  };
+  HKMJ.DEFAULT_SETTINGS = DEFAULT_SETTINGS;
+
+  function mergeSettings(s) {
+    s = s || {};
+    var out = {
+      minFan: s.minFan !== undefined ? s.minFan : DEFAULT_SETTINGS.minFan,
+      payment: s.payment || DEFAULT_SETTINGS.payment,
+      unit: s.unit || DEFAULT_SETTINGS.unit,
+      rounds: s.rounds !== undefined ? s.rounds : DEFAULT_SETTINGS.rounds,
+      aiLevel: s.aiLevel || DEFAULT_SETTINGS.aiLevel,
+      startingScore: s.startingScore !== undefined ? s.startingScore : DEFAULT_SETTINGS.startingScore,
+      optional: Object.assign({}, DEFAULT_SETTINGS.optional, s.optional || {})
+    };
+    return out;
+  }
+
+  var FEATURE_TEXT = {
+    selfPick: ['Self-Pick', '自摸'], kongReplacement: ['Win by Kong Replacement', '槓上開花'],
+    doubleKong: ['Double Kong Replacement', '槓上槓'], concealed: ['Concealed Hand', '門前清'],
+    robKong: ['Robbing the Kong', '搶槓'], moon: ['Moon Under The Sea', '海底撈月'],
+    allSequences: ['All Sequences', '平糊'], allTriplets: ['All Triplets', '對對糊'],
+    dragon: ['Dragon', '三元牌'], smallThreeDragons: ['Small Three Dragons', '小三元'],
+    bigThreeDragons: ['Big Three Dragons', '大三元'], roundWind: ['Round Wind', '圈風'],
+    seatWind: ['Seat Wind', '門風'], smallFourWinds: ['Small Four Winds', '小四喜'],
+    bigFourWinds: ['Big Four Winds', '大四喜'], mixedFlush: ['Mixed Flush', '混一色'],
+    fullFlush: ['Full Flush', '清一色'], kong: ['Kong', '槓'],
+    sevenPairs: ['Seven Pairs', '七對子'], luxurySevenPairs: ['Luxury Seven Pairs', '豪華七對'],
+    thirteenOrphans: ['Thirteen Orphans', '十三么'], heaven: ['Blessing of Heaven', '天糊'],
+    earth: ['Blessing of Earth', '地糊'], man: ['Blessing of Man', '人糊'],
+    noFlowers: ['No Flowers', '無花'], seatFlower: ['Seat Flower', '正花'],
+    allFlowers: ['All Flowers', '一檯花'], allSeasons: ['All Seasons', '一檯花'],
+    sevenFlowers: ['Seven Flowers', '花糊'], eightFlowers: ['Eight Flowers', '大花糊']
+  };
+  function featureName(id) { return (FEATURE_TEXT[id] || [id, id])[0]; }
+  function featureZh(id) { return (FEATURE_TEXT[id] || [id, id])[1]; }
+  function item(id, fan, detail) { return { id: id, name: featureName(id), zh: featureZh(id), fan: fan, detail: detail }; }
+  function replacedItem(id, fan, reason) { return { id: id, name: featureName(id), zh: featureZh(id), fan: fan, reason: reason }; }
+
+  var POINTS_TABLE = [1, 2, 4, 8, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384];
+  function points(fan) { return POINTS_TABLE[Math.max(0, Math.min(13, fan | 0))]; }
+
+  function paymentsFn(o) {
+    var fan = o.fan, unit = o.unit || 'points', payment = o.payment || 'full';
+    var P = unit === 'chips' ? Math.max(1, Math.min(fan, 13)) : points(fan);
+    var d = [0, 0, 0, 0];
+    if (o.source === 'self') {
+      for (var p = 0; p < 4; p++) { if (p !== o.winner) d[p] -= P; }
+      d[o.winner] += 3 * P;
+    } else {
+      if (payment === 'shared') {
+        for (var q = 0; q < 4; q++) { if (q !== o.winner && q !== o.payer) d[q] -= P / 2; }
+        d[o.payer] -= P; d[o.winner] += 2 * P;
+      } else {
+        d[o.payer] -= 2 * P; d[o.winner] += 2 * P;
+      }
+    }
+    return d;
+  }
+
+  HKMJ.Scoring = { points: points, payments: paymentsFn }; // minimal — UI does not depend on this directly
+
+  // ------------------------------------------------------------------ winning-shape decomposition
+
+  /** All ways to split a 34-length count vector into `setsNeeded` chow/pong sets + 1 pair. */
+  function decomposeStandard(counts, setsNeeded) {
+    var results = [];
+    function rec(k, setsLeft, sets, pairKind) {
+      while (k < 34 && counts[k] === 0) k++;
+      if (k === 34) { if (setsLeft === 0 && pairKind !== null) results.push({ sets: sets.slice(), pair: pairKind }); return; }
+      if (setsLeft === 0) {
+        if (pairKind === null && counts[k] === 2) { counts[k] -= 2; rec(k, 0, sets, k); counts[k] += 2; }
+        return;
+      }
+      if (pairKind === null && counts[k] >= 2) { counts[k] -= 2; rec(k, setsLeft, sets, k); counts[k] += 2; }
+      if (counts[k] >= 3) {
+        counts[k] -= 3; sets.push({ type: 'pong', tiles: [k, k, k] });
+        rec(k, setsLeft - 1, sets, pairKind);
+        sets.pop(); counts[k] += 3;
+      }
+      if (T.isSuit(k) && T.rankOf(k) <= 7 && T.suitOf(k + 1) === T.suitOf(k) && T.suitOf(k + 2) === T.suitOf(k) && counts[k + 1] > 0 && counts[k + 2] > 0) {
+        counts[k]--; counts[k + 1]--; counts[k + 2]--;
+        sets.push({ type: 'chow', tiles: [k, k + 1, k + 2] });
+        rec(k, setsLeft - 1, sets, pairKind);
+        sets.pop(); counts[k]++; counts[k + 1]++; counts[k + 2]++;
+      }
+    }
+    rec(0, setsNeeded, [], null);
+    return results;
+  }
+
+  function findSevenPairs(hand, luxuryOn) {
+    if (hand.length !== 14) return null;
+    var counts = T.counts(hand);
+    var pairs = 0, quadKinds = [];
+    for (var k = 0; k < 34; k++) {
+      var c = counts[k];
+      if (c === 0) continue;
+      if (c === 2) pairs++;
+      else if (c === 4 && luxuryOn) { quadKinds.push(k); pairs += 2; }
+      else return null;
+    }
+    if (pairs !== 7) return null;
+    return { counts: counts, quadKinds: quadKinds };
+  }
+
+  var ORPHAN_KINDS = [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33];
+  function findThirteenOrphans(hand, melds) {
+    if (melds.length || hand.length !== 14) return null;
+    var counts = T.counts(hand);
+    var extra = -1;
+    for (var k = 0; k < 34; k++) {
+      var need = ORPHAN_KINDS.indexOf(k) >= 0;
+      if (!need) { if (counts[k] > 0) return null; continue; }
+      if (counts[k] === 0) return null;
+      if (counts[k] > 2) return null;
+      if (counts[k] === 2) { if (extra >= 0) return null; extra = k; }
+    }
+    return extra >= 0 ? { pairKind: extra } : null;
+  }
+
+  function isWinningShape(hand, melds, optional) {
+    if (findThirteenOrphans(hand, melds)) return true;
+    if (!melds.length && optional.sevenPairs && findSevenPairs(hand, optional.luxurySevenPairs)) return true;
+    var setsNeeded = 4 - melds.length;
+    var counts = T.counts(hand);
+    return decomposeStandard(counts, setsNeeded).length > 0;
+  }
+
+  // ------------------------------------------------------------------ groups + fan scoring
+
+  function buildStandardGroups(decomp, melds, winTile) {
+    var groups = [], placed = false;
+    melds.forEach(function (m) { groups.push({ kind: m.type, tiles: m.tiles.slice(), concealed: !!m.concealed, fromMeld: true, hasWinTile: false }); });
+    decomp.sets.forEach(function (s) {
+      var has = !placed && s.tiles.indexOf(winTile) >= 0;
+      if (has) placed = true;
+      groups.push({ kind: s.type, tiles: s.tiles.slice(), concealed: true, fromMeld: false, hasWinTile: has });
+    });
+    var pairHas = !placed && decomp.pair === winTile;
+    groups.push({ kind: 'pair', tiles: [decomp.pair, decomp.pair], concealed: true, fromMeld: false, hasWinTile: pairHas });
+    return groups;
+  }
+
+  function windSetIndex(kind) { return T.isWind(kind) ? T.windIndex(kind) : -1; }
+
+  /** Additive Fan stack for a standard-shape decomposition (see file header for what's NOT covered). */
+  function scoreStandard(decomp, ctx) {
+    var groups = buildStandardGroups(decomp, ctx.melds, ctx.winTile);
+    var items = [], replaced = [];
+    var sets = groups.filter(function (g) { return g.kind !== 'pair'; });
+    var allTiles = []; groups.forEach(function (g) { g.tiles.forEach(function (t) { allTiles.push(t); }); });
+    // win action
+    if (ctx.source === 'self') {
+      if (ctx.kongReplacement >= 2) {
+        items.push(item('doubleKong', 9));
+        replaced.push(replacedItem('selfPick', 1, 'replaced by Double Kong Replacement'));
+        replaced.push(replacedItem('kongReplacement', 2, 'replaced by Double Kong Replacement'));
+      } else if (ctx.kongReplacement === 1) {
+        items.push(item('kongReplacement', 2));
+        replaced.push(replacedItem('selfPick', 1, 'replaced by Win by Kong Replacement'));
+      } else {
+        items.push(item('selfPick', 1));
+      }
+    } else if (ctx.source === 'robKong') {
+      items.push(item('robKong', 1));
+    }
+    if (ctx.melds.every(function (m) { return m.concealed; })) items.push(item('concealed', 1));
+    if (ctx.lastTile) items.push(item('moon', 1));
+    // set-type
+    var allChow = sets.length === 4 && sets.every(function (s) { return s.kind === 'chow'; });
+    var allPongKong = sets.length === 4 && sets.every(function (s) { return s.kind === 'pong' || s.kind === 'kong'; });
+    if (allChow) items.push(item('allSequences', 1));
+    if (allPongKong) items.push(item('allTriplets', 3));
+    // dragons
+    var dragonSets = sets.filter(function (s) { return T.isDragon(s.tiles[0]); });
+    if (dragonSets.length === 3) {
+      items.push(item('bigThreeDragons', 8));
+      replaced.push(replacedItem('dragon', dragonSets.length, 'replaced by Big Three Dragons'));
+    } else if (dragonSets.length === 2 && T.isDragon(decomp.pair)) {
+      items.push(item('smallThreeDragons', 5));
+      replaced.push(replacedItem('dragon', dragonSets.length, 'replaced by Small Three Dragons'));
+    } else if (dragonSets.length > 0) {
+      dragonSets.forEach(function (s) { items.push(item('dragon', 1, T.name(s.tiles[0]))); });
+    }
+    // winds
+    var windSets = sets.filter(function (s) { return T.isWind(s.tiles[0]); });
+    if (windSets.length === 4) {
+      items.push(item('bigFourWinds', 13));
+      replaced.push(replacedItem('roundWind', 1, 'replaced by Big Four Winds'));
+      replaced.push(replacedItem('seatWind', 1, 'replaced by Big Four Winds'));
+    } else if (windSets.length === 3 && T.isWind(decomp.pair)) {
+      items.push(item('smallFourWinds', 6));
+      replaced.push(replacedItem('roundWind', 1, 'replaced by Small Four Winds'));
+      replaced.push(replacedItem('seatWind', 1, 'replaced by Small Four Winds'));
+    } else {
+      windSets.forEach(function (s) {
+        var wi = windSetIndex(s.tiles[0]);
+        if (wi === ctx.roundWind) items.push(item('roundWind', 1));
+        if (wi === ctx.seatWind) items.push(item('seatWind', 1));
+      });
+    }
+    // flush
+    var suits = {}; var hasHonour = false;
+    allTiles.forEach(function (t) { if (T.isSuit(t)) suits[T.suitOf(t)] = true; else hasHonour = true; });
+    var suitCount = Object.keys(suits).length;
+    if (suitCount === 1) {
+      if (hasHonour) items.push(item('mixedFlush', 3));
+      else { items.push(item('fullFlush', 7)); replaced.push(replacedItem('mixedFlush', 3, 'replaced by Full Flush')); }
+    }
+    // kong †
+    if (ctx.settings.optional.kong) {
+      ctx.melds.forEach(function (m) { if (m.type === 'kong') items.push(item('kong', m.concealed ? 2 : 1, (m.concealed ? 'concealed' : 'open') + ' ' + T.name(m.tiles[0]))); });
+    }
+    pushBonusItems(items, ctx);
+    return finishEvaluation(items, replaced, 'standard', groups, ctx);
+  }
+
+  function scoreSevenPairs(sp, ctx) {
+    var groups = [];
+    for (var k = 0; k < 34; k++) {
+      var c = sp.counts[k]; if (!c) continue;
+      if (c === 4) {
+        groups.push({ kind: 'pair', tiles: [k, k], concealed: true, fromMeld: false, hasWinTile: k === ctx.winTile });
+        groups.push({ kind: 'pair', tiles: [k, k], concealed: true, fromMeld: false, hasWinTile: false });
+      } else {
+        groups.push({ kind: 'pair', tiles: [k, k], concealed: true, fromMeld: false, hasWinTile: k === ctx.winTile });
+      }
+    }
+    var items = [], replaced = [];
+    items.push(item('sevenPairs', 4));
+    if (sp.quadKinds.length) items.push(item('luxurySevenPairs', 2 * sp.quadKinds.length));
+    if (ctx.source === 'self') items.push(item('selfPick', 1));
+    else if (ctx.source === 'robKong') items.push(item('robKong', 1));
+    if (ctx.lastTile) items.push(item('moon', 1));
+    var suits = {}; var hasHonour = false;
+    for (var k2 = 0; k2 < 34; k2++) { if (sp.counts[k2]) { if (T.isSuit(k2)) suits[T.suitOf(k2)] = true; else hasHonour = true; } }
+    var suitCount = Object.keys(suits).length;
+    if (suitCount === 1) { if (hasHonour) items.push(item('mixedFlush', 3)); else { items.push(item('fullFlush', 7)); replaced.push(replacedItem('mixedFlush', 3, 'replaced by Full Flush')); } }
+    pushBonusItems(items, ctx);
+    return finishEvaluation(items, replaced, 'sevenPairs', groups, ctx);
+  }
+
+  var FLAT_VALUE = { heaven: 13, earth: 13, man: 13, thirteenOrphans: 13 };
+  function scoreFlat(id, ctx, groups, pattern) {
+    var items = [item(id, FLAT_VALUE[id])];
+    return finishEvaluation(items, [], pattern, groups, ctx);
+  }
+
+  function pushBonusItems(items, ctx) {
+    if (!ctx.flowers.length) { items.push(item('noFlowers', 1)); return; }
+    var seatNum = ctx.seatWind + 1, seatCount = 0;
+    ctx.flowers.forEach(function (f) { if (T.bonusNumber(f) === seatNum) seatCount++; });
+    if (seatCount) items.push(item('seatFlower', seatCount, seatCount + ' matching your seat'));
+    var flowerSet = [34, 35, 36, 37].every(function (f) { return ctx.flowers.indexOf(f) >= 0; });
+    var seasonSet = [38, 39, 40, 41].every(function (f) { return ctx.flowers.indexOf(f) >= 0; });
+    if (flowerSet) items.push(item('allFlowers', 2));
+    if (seasonSet) items.push(item('allSeasons', 2));
+  }
+
+  function finishEvaluation(items, replaced, pattern, groups, ctx) {
+    items = items.filter(function (it) { return it.fan > 0; });
+    var rawFan = items.reduce(function (a, b) { return a + b.fan; }, 0);
+    var fan = Math.min(13, rawFan);
+    var valid = (fan >= ctx.settings.minFan) || !!ctx.blessing || !!ctx.flowerWin;
+    return { winning: true, valid: valid, fan: fan, rawFan: rawFan, limit: rawFan >= 13, items: items, replaced: replaced, pattern: pattern, groups: groups, points: points(fan) };
+  }
+
+  var NOT_WINNING = { winning: false, valid: false, fan: 0, rawFan: 0, limit: false, items: [], replaced: [], pattern: null, groups: [], points: points(0) };
+
+  function evaluate(ctx) {
+    if (ctx.flowerWin) {
+      var n = ctx.flowers.length;
+      var fan = n >= 8 ? 8 : 3;
+      var items = [item(n >= 8 ? 'eightFlowers' : 'sevenFlowers', fan)];
+      return finishEvaluation(items, [], 'flowers', [], ctx);
+    }
+    // NOTE: blessing (heaven/earth/man) must NOT bypass winning-shape detection — it only overrides the
+    // resulting Fan value of a hand that is otherwise already a genuine winning shape (see findWinningBest below).
+    var best = findWinningBest(ctx);
+    if (!best) return NOT_WINNING;
+    if (ctx.blessing) return scoreFlat(ctx.blessing, ctx, best.groups, ctx.blessing);
+    return best;
+  }
+
+  function findWinningBest(ctx) {
+    var best = null;
+    function consider(ev) { if (!ev) return; if (!best || ev.fan > best.fan || (ev.fan === best.fan && ev.rawFan > best.rawFan)) best = ev; }
+    var orphan = findThirteenOrphans(ctx.hand, ctx.melds);
+    if (orphan) {
+      var groups = ORPHAN_KINDS.map(function (k) { return { kind: 'single', tiles: [k], concealed: true, fromMeld: false, hasWinTile: k === ctx.winTile && k !== orphan.pairKind }; });
+      groups.push({ kind: 'single', tiles: [orphan.pairKind], concealed: true, fromMeld: false, hasWinTile: orphan.pairKind === ctx.winTile });
+      consider(scoreFlat('thirteenOrphans', ctx, groups, 'thirteenOrphans'));
+    }
+    if (!ctx.melds.length && ctx.settings.optional.sevenPairs) {
+      var sp = findSevenPairs(ctx.hand, ctx.settings.optional.luxurySevenPairs);
+      if (sp) consider(scoreSevenPairs(sp, ctx));
+    }
+    var setsNeeded = 4 - ctx.melds.length;
+    var decomps = decomposeStandard(T.counts(ctx.hand), setsNeeded);
+    decomps.forEach(function (d) { consider(scoreStandard(d, ctx)); });
+    return best;
+  }
+
+  // ------------------------------------------------------------------ small helpers
+
+  function cloneMeld(m) { return { type: m.type, tiles: m.tiles.slice(), concealed: !!m.concealed, from: (m.from == null ? null : m.from), claimed: (m.claimed == null ? null : m.claimed), added: !!m.added }; }
+  function removeN(arr, tile, n) { for (var i = 0; i < n; i++) { var idx = arr.indexOf(tile); if (idx < 0) throw new Error('removeN: tile ' + tile + ' missing'); arr.splice(idx, 1); } }
+  function removeFromRiver(river, tile) { for (var i = river.length - 1; i >= 0; i--) { if (river[i] === tile) { river.splice(i, 1); return; } } }
+  function actionsEqual(a, b) {
+    if (a.type !== b.type) return false;
+    if (b.tile !== undefined && a.tile !== b.tile) return false;
+    if (b.tiles) { if (!a.tiles || a.tiles.length !== b.tiles.length) return false; for (var i = 0; i < b.tiles.length; i++) if (a.tiles[i] !== b.tiles[i]) return false; }
+    return true;
+  }
+  /** Front-of-wall deal order (length 53): dealer,S,W,N x4 tiles, three times round; then 1 each; then dealer's 14th. */
+  function dealOrderIndices(dealer) {
+    var seq = [];
+    for (var r = 0; r < 3; r++) for (var i = 0; i < 4; i++) { var pl = (dealer + i) % 4; for (var t = 0; t < 4; t++) seq.push(pl); }
+    for (var i2 = 0; i2 < 4; i2++) seq.push((dealer + i2) % 4);
+    seq.push(dealer);
+    return seq;
+  }
+
+  // ------------------------------------------------------------------ Game
+
+  function Game(opts) {
+    opts = opts || {};
+    this._settings = mergeSettings(opts.settings);
+    var names = (opts.names || ['You', 'Mei', 'Wing', 'Keung']).slice(0, 4);
+    while (names.length < 4) names.push('P' + names.length);
+    this._names = names;
+    this._humans = opts.humans || [0];
+    this._rng = HKMJ.RNG(opts.seed);
+    this._firstDealerOpt = opts.firstDealer;
+    this._presetWalls = opts.presetWalls || null;
+    this._listeners = [];
+    this._started = false;
+    this._scores = [0, 0, 0, 0]; this._round = 0; this._dealer = 0; this._dealerRepeat = 0; this._handNo = 0;
+    this._firstDealer = 0;
+    this._log = []; this._lastResult = null; this._standings = null;
+    this._hands = [[], [], [], []]; this._melds = [[], [], [], []]; this._flowers = [[], [], [], []]; this._discards = [[], [], [], []];
+    this._drawnTile = [null, null, null, null]; this._lastAction = [null, null, null, null];
+    this._hasDrawnBefore = [false, false, false, false]; this._firstDrawFlag = [false, false, false, false];
+    this._phase = 'turn'; this._turnPlayer = 0; this._afterClaim = false;
+    this._wall = []; this._front = 0; this._back = 143; this._dice = [1, 1, 1];
+    this._lastDiscard = null; this._claimTile = null; this._waiting = []; this._claimOptions = {}; this._votes = {};
+    this._pendingAddKong = null; this._kongStreak = 0; this._finalDiscard = false;
+    this._dealerActed = false; this._handDiscardCount = 0; this._anyMeldDeclaredThisHand = false;
+  }
+
+  Game.prototype.start = function () {
+    if (this._started) return;
+    this._started = true;
+    this._round = 0; this._dealerRepeat = 0; this._handNo = 0;
+    this._firstDealer = (this._firstDealerOpt !== undefined && this._firstDealerOpt !== null) ? this._firstDealerOpt : this._rng.int(4);
+    this._dealer = this._firstDealer;
+    this._scores = [0, 0, 0, 0].map(function () { return this._settings.startingScore; }, this);
+    this._beginHand();
+  };
+
+  Game.prototype._beginHand = function () {
+    this._handNo++;
+    var wallSpec = this._presetWalls && this._presetWalls[this._handNo - 1];
+    this._wall = wallSpec ? wallSpec.slice() : this._rng.shuffle(T.fullSet().slice());
+    this._front = 0; this._back = 143;
+    this._hands = [[], [], [], []]; this._melds = [[], [], [], []]; this._flowers = [[], [], [], []]; this._discards = [[], [], [], []];
+    this._drawnTile = [null, null, null, null]; this._lastAction = [null, null, null, null];
+    this._lastDiscard = null; this._claimTile = null; this._waiting = []; this._claimOptions = {}; this._votes = {};
+    this._pendingAddKong = null; this._kongStreak = 0; this._finalDiscard = false;
+    this._dealerActed = false; this._handDiscardCount = 0; this._anyMeldDeclaredThisHand = false;
+    this._hasDrawnBefore = [false, false, false, false]; this._firstDrawFlag = [false, false, false, false];
+    this._dice = [1 + this._rng.int(6), 1 + this._rng.int(6), 1 + this._rng.int(6)];
+    this._phase = 'turn'; this._turnPlayer = this._dealer; this._afterClaim = false;
+    this._lastResult = null;
+    var order = dealOrderIndices(this._dealer);
+    for (var i = 0; i < order.length; i++) { this._hands[order[i]].push(this._wall[this._front++]); }
+    this._emit({ type: 'handStart', handNo: this._handNo, round: this._round, dealer: this._dealer, dice: this._dice });
+    this._log_push('Hand ' + this._handNo + ' · ' + ['East', 'South', 'West', 'North'][this._round] + ' round · dealer ' + (this._dealer === 0 ? 'You' : this._names[this._dealer]));
+    for (var s = 0; s < 4; s++) { this._settleAllBonus((this._dealer + s) % 4); if (this._phase === 'handEnd') return; }
+  };
+
+  Game.prototype._wallCount = function () { return this._back - this._front + 1; };
+
+  Game.prototype._settleAllBonus = function (p) {
+    var found = true;
+    while (found) {
+      found = false;
+      for (var i = 0; i < this._hands[p].length; i++) {
+        if (T.isBonus(this._hands[p][i])) {
+          var tile = this._hands[p].splice(i, 1)[0];
+          this._flowers[p].push(tile);
+          this._emit({ type: 'bonus', player: p, tile: tile });
+          if (this._wallCount() === 0) { this._finalizeDraw(); return; }
+          this._hands[p].push(this._wall[this._back--]);
+          found = true;
+          break;
+        }
+      }
+    }
+  };
+
+  Game.prototype._drawForTurn = function (p) {
+    if (this._wallCount() === 0) { this._finalizeDraw(); return; }
+    var isFirst = !this._hasDrawnBefore[p];
+    this._hasDrawnBefore[p] = true;
+    this._firstDrawFlag[p] = isFirst;
+    this._hands[p].push(this._wall[this._front++]);
+    this._emit({ type: 'draw', player: p, replacement: false });
+    this._settleAllBonus(p);
+    if (this._phase === 'handEnd') return;
+    this._drawnTile[p] = this._hands[p][this._hands[p].length - 1];
+  };
+
+  /** @returns {boolean} false if the wall ran out and the hand ended in a draw. */
+  Game.prototype._drawReplacement = function (p) {
+    if (this._wallCount() === 0) { this._finalizeDraw(); return false; }
+    this._hands[p].push(this._wall[this._back--]);
+    this._emit({ type: 'draw', player: p, replacement: true });
+    this._settleAllBonus(p);
+    if (this._phase === 'handEnd') return false;
+    this._drawnTile[p] = this._hands[p][this._hands[p].length - 1];
+    return true;
+  };
+
+  Game.prototype._ctxFor = function (p, winTile, source, extra) {
+    extra = extra || {};
+    return {
+      hand: this._hands[p].slice(), melds: this._melds[p].map(cloneMeld), winTile: winTile, source: source,
+      kongReplacement: extra.kongReplacement || 0, lastTile: !!extra.lastTile,
+      seatWind: (p - this._dealer + 4) % 4, roundWind: this._round,
+      flowers: this._flowers[p].slice(), blessing: extra.blessing || null, flowerWin: !!extra.flowerWin,
+      settings: this._settings
+    };
+  };
+
+  Game.prototype._actionsForTurn = function (p) {
+    var acts = [];
+    var hand = this._hands[p];
+    var melds = this._melds[p];
+    if (!this._afterClaim) {
+      var winTile = this._drawnTile[p] != null ? this._drawnTile[p] : (hand.length ? hand[hand.length - 1] : null);
+      if (winTile != null) {
+        var blessing = null;
+        if (p === this._dealer && !this._dealerActed) blessing = 'heaven';
+        else if (p !== this._dealer && this._firstDrawFlag[p] && !this._anyMeldDeclaredThisHand) blessing = 'man';
+        var ev = evaluate(this._ctxFor(p, winTile, 'self', { kongReplacement: Math.min(2, this._kongStreak), lastTile: this._wallCount() === 0, blessing: blessing }));
+        if (ev.valid) acts.push({ type: 'selfWin', fan: ev.fan, evaluation: ev });
+      }
+      if (this._flowers[p].length === 7 || this._flowers[p].length === 8) acts.push({ type: 'flowerWin' });
+      if (this._wallCount() >= 1) {
+        var counts = T.counts(hand);
+        for (var k = 0; k < 34; k++) if (counts[k] === 4) acts.push({ type: 'concealedKong', tile: k });
+        melds.forEach(function (m) { if (m.type === 'pong' && counts[m.tiles[0]] >= 1) acts.push({ type: 'addKong', tile: m.tiles[0] }); });
+      }
+    }
+    var seen = {};
+    hand.forEach(function (t) { if (!seen[t]) { seen[t] = 1; acts.push({ type: 'discard', tile: t }); } });
+    return acts;
+  };
+
+  Game.prototype._computeClaimOptions = function (p, tile, from, kind, blessing) {
+    var acts = [];
+    var hand = this._hands[p];
+    var counts = T.counts(hand);
+    var ev = evaluate(this._ctxFor(p, tile, kind === 'robKong' ? 'robKong' : 'discard', { lastTile: kind === 'discard' && this._finalDiscard, blessing: blessing || null }));
+    if (ev.valid) acts.push({ type: 'win', fan: ev.fan, evaluation: ev });
+    if (kind === 'discard' && !this._finalDiscard) {
+      if (this._wallCount() >= 1 && counts[tile] >= 3) acts.push({ type: 'kong' });
+      if (counts[tile] >= 2) acts.push({ type: 'pong' });
+      if (p === (from + 1) % 4 && T.isSuit(tile)) {
+        var r = T.rankOf(tile);
+        if (r >= 3 && counts[tile - 2] > 0 && counts[tile - 1] > 0) acts.push({ type: 'chow', tiles: T.sort([tile - 2, tile - 1, tile]) });
+        if (r >= 2 && r <= 8 && counts[tile - 1] > 0 && counts[tile + 1] > 0) acts.push({ type: 'chow', tiles: T.sort([tile - 1, tile, tile + 1]) });
+        if (r <= 7 && counts[tile + 1] > 0 && counts[tile + 2] > 0) acts.push({ type: 'chow', tiles: T.sort([tile, tile + 1, tile + 2]) });
+      }
+    }
+    return acts;
+  };
+
+  Game.prototype.getActions = function (p) {
+    if (this._phase === 'turn') return this._turnPlayer === p ? this._actionsForTurn(p) : [];
+    if (this._phase === 'claim' || this._phase === 'robKong') return this._waiting.indexOf(p) >= 0 ? this._claimOptions[p].concat([{ type: 'pass' }]) : [];
+    return [];
+  };
+
+  Game.prototype.getPending = function () {
+    if (this._phase === 'handEnd') return { type: 'handEnd', result: this._lastResult };
+    if (this._phase === 'gameEnd') return { type: 'gameEnd', standings: this._standings };
+    if (this._phase === 'claim') return { type: 'claim', tile: this._claimTile.tile, from: this._claimTile.from, waiting: this._waiting.slice() };
+    if (this._phase === 'robKong') return { type: 'robKong', tile: this._claimTile.tile, from: this._claimTile.from, waiting: this._waiting.slice() };
+    return { type: 'turn', player: this._turnPlayer, afterClaim: this._afterClaim };
+  };
+
+  Game.prototype.act = function (p, action) {
+    try {
+      var result = this._applyAction(p, action);
+      if (!result.ok) return result;
+      this._autoAdvance();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: (e && e.message) || String(e) };
+    }
+  };
+
+  Game.prototype._applyAction = function (p, action) {
+    if (!action || typeof action.type !== 'string') return { ok: false, error: 'bad action' };
+    if (action.type === 'pass') {
+      if (this._phase !== 'claim' && this._phase !== 'robKong') return { ok: false, error: 'nothing to pass' };
+      if (this._waiting.indexOf(p) < 0) return { ok: false, error: 'player ' + p + ' is not waiting' };
+      this._votes[p] = { type: 'pass' };
+      this._waiting.splice(this._waiting.indexOf(p), 1);
+      return { ok: true };
+    }
+    var legal = this.getActions(p);
+    var match = null;
+    for (var i = 0; i < legal.length; i++) { if (actionsEqual(legal[i], action)) { match = legal[i]; break; } }
+    if (!match) return { ok: false, error: 'illegal action for player ' + p + ': ' + JSON.stringify(action) };
+    if (p === this._dealer) this._dealerActed = true;
+    this._firstDrawFlag[p] = false;
+    switch (action.type) {
+      case 'discard': this._doDiscardAction(p, action.tile); return { ok: true };
+      case 'selfWin': this._finalizeWin(p, match.evaluation, { source: 'self', winTile: match.evaluation && this._winTileFor(p), payer: null }); return { ok: true };
+      case 'flowerWin': this._doFlowerWin(p); return { ok: true };
+      case 'concealedKong': this._doConcealedKong(p, action.tile); return { ok: true };
+      case 'addKong': this._doAddKong(p, action.tile); return { ok: true };
+      case 'win': case 'kong': case 'pong': case 'chow':
+        if (this._phase !== 'claim' && this._phase !== 'robKong') return { ok: false, error: 'no claim pending' };
+        if (this._waiting.indexOf(p) < 0) return { ok: false, error: 'player ' + p + ' is not waiting' };
+        this._votes[p] = match;
+        this._waiting.splice(this._waiting.indexOf(p), 1);
+        return { ok: true };
+      default: return { ok: false, error: 'unknown action type ' + action.type };
+    }
+  };
+
+  Game.prototype._winTileFor = function (p) {
+    var hand = this._hands[p];
+    return this._drawnTile[p] != null ? this._drawnTile[p] : (hand.length ? hand[hand.length - 1] : null);
+  };
+
+  Game.prototype._autoAdvance = function () {
+    while (true) {
+      if (this._phase === 'handEnd' || this._phase === 'gameEnd') return;
+      if ((this._phase === 'claim' || this._phase === 'robKong') && this._waiting.length === 0) {
+        if (this._phase === 'claim') this._resolveClaim(); else this._resolveRobKong();
+        continue;
+      }
+      return;
+    }
+  };
+
+  Game.prototype._findVote = function (type) {
+    var found = null, votes = this._votes;
+    Object.keys(votes).forEach(function (k) { if (found == null && votes[k].type === type) found = +k; });
+    return found;
+  };
+
+  Game.prototype._doDiscardAction = function (p, tile) {
+    var hand = this._hands[p];
+    var idx = hand.indexOf(tile); if (idx < 0) throw new Error('tile not in hand');
+    hand.splice(idx, 1);
+    this._discards[p].push(tile);
+    this._drawnTile[p] = null;
+    this._lastAction[p] = null;
+    this._lastDiscard = { tile: tile, from: p };
+    this._handDiscardCount++;
+    this._finalDiscard = (this._wallCount() === 0);
+    this._emit({ type: 'discard', player: p, tile: tile });
+    this._log_push((p === 0 ? 'You' : this._names[p]) + (p === 0 ? ' discard ' : ' discards ') + T.name(tile) + ' ' + T.zh(tile));
+    this._openClaimAfterDiscard(tile, p);
+  };
+
+  Game.prototype._openClaimAfterDiscard = function (tile, from) {
+    var isEarth = (from === this._dealer && this._handDiscardCount === 1);
+    this._claimTile = { tile: tile, from: from, kind: 'discard' };
+    this._waiting = []; this._claimOptions = {}; this._votes = {};
+    for (var i = 1; i <= 3; i++) {
+      var p = (from + i) % 4;
+      var opts = this._computeClaimOptions(p, tile, from, 'discard', isEarth ? 'earth' : null);
+      if (opts.length) { this._claimOptions[p] = opts; this._waiting.push(p); }
+    }
+    if (!this._waiting.length) { this._claimTile = null; this._advanceAfterNoClaim(from); }
+    else { this._phase = 'claim'; }
+  };
+
+  Game.prototype._advanceAfterNoClaim = function (from) {
+    if (this._finalDiscard) { this._finalizeDraw(); return; }
+    var next = (from + 1) % 4;
+    this._turnPlayer = next; this._afterClaim = false; this._kongStreak = 0;
+    this._phase = 'turn';
+    this._drawForTurn(next);
+  };
+
+  Game.prototype._resolveClaim = function () {
+    var from = this._claimTile.from, tile = this._claimTile.tile;
+    var votes = this._votes;
+    var winners = Object.keys(votes).map(Number).filter(function (p) { return votes[p].type === 'win'; });
+    if (winners.length) {
+      winners.sort(function (a, b) { return ((a - from + 4) % 4) - ((b - from + 4) % 4); });
+      var w = winners[0];
+      this._claimTile = null;
+      this._finalizeWin(w, votes[w].evaluation, { source: 'discard', winTile: tile, payer: from });
+      return;
+    }
+    var kongP = this._findVote('kong'), pongP = this._findVote('pong');
+    if (kongP != null || pongP != null) { this._applyClaimedMeld(kongP != null ? kongP : pongP, kongP != null ? 'kong' : 'pong', tile, from); return; }
+    var chowP = this._findVote('chow');
+    if (chowP != null) { this._applyClaimedMeld(chowP, 'chow', tile, from, votes[chowP].tiles); return; }
+    this._claimTile = null;
+    this._advanceAfterNoClaim(from);
+  };
+
+  Game.prototype._applyClaimedMeld = function (p, type, tile, from, chowTiles) {
+    var hand = this._hands[p];
+    var meld;
+    if (type === 'pong') { removeN(hand, tile, 2); meld = { type: 'pong', tiles: [tile, tile, tile], concealed: false, from: from, claimed: tile, added: false }; }
+    else if (type === 'kong') { removeN(hand, tile, 3); meld = { type: 'kong', tiles: [tile, tile, tile, tile], concealed: false, from: from, claimed: tile, added: false }; }
+    else {
+      var rem = chowTiles.slice(); rem.splice(rem.indexOf(tile), 1);
+      rem.forEach(function (t) { removeN(hand, t, 1); });
+      meld = { type: 'chow', tiles: T.sort(chowTiles), concealed: false, from: from, claimed: tile, added: false };
+    }
+    this._melds[p].push(meld);
+    this._anyMeldDeclaredThisHand = true;
+    this._lastAction[p] = type;
+    removeFromRiver(this._discards[from], tile);
+    this._claimTile = null;
+    this._phase = 'turn';
+    this._emit({ type: 'claim', player: p, claim: type, tile: tile, from: from });
+    this._log_push((p === 0 ? 'You' : this._names[p]) + ' ' + (type === 'kong' ? (p === 0 ? 'kong' : 'kongs') : (type === 'pong' ? (p === 0 ? 'pong' : 'pongs') : (p === 0 ? 'chow' : 'chows'))) + ' ' + T.name(tile));
+    this._kongStreak = 0;
+    this._turnPlayer = p;
+    if (type === 'kong') { this._afterClaim = false; if (!this._drawReplacement(p)) return; this._kongStreak = 1; }
+    else { this._afterClaim = true; }
+  };
+
+  Game.prototype._doConcealedKong = function (p, tile) {
+    removeN(this._hands[p], tile, 4);
+    this._melds[p].push({ type: 'kong', tiles: [tile, tile, tile, tile], concealed: true, from: null, claimed: null, added: false });
+    this._lastAction[p] = 'concealedKong';
+    this._emit({ type: 'concealedKong', player: p, tile: tile });
+    this._log_push((p === 0 ? 'You' : this._names[p]) + ' declare' + (p === 0 ? '' : 's') + ' a concealed Kong of ' + T.name(tile));
+    this._kongStreak++;
+    this._afterClaim = false;
+    this._drawReplacement(p);
+  };
+
+  Game.prototype._doAddKong = function (p, tile) {
+    var meldIdx = -1;
+    this._melds[p].forEach(function (m, i) { if (m.type === 'pong' && m.tiles[0] === tile) meldIdx = i; });
+    removeN(this._hands[p], tile, 1);
+    this._pendingAddKong = { player: p, tile: tile, meldIndex: meldIdx };
+    this._claimTile = { tile: tile, from: p, kind: 'robKong' };
+    this._waiting = []; this._claimOptions = {}; this._votes = {};
+    for (var i = 1; i <= 3; i++) {
+      var q = (p + i) % 4;
+      var opts = this._computeClaimOptions(q, tile, p, 'robKong', null);
+      if (opts.length) { this._claimOptions[q] = opts; this._waiting.push(q); }
+    }
+    if (!this._waiting.length) { this._claimTile = null; this._completeAddKong(); }
+    else { this._phase = 'robKong'; }
+  };
+
+  Game.prototype._completeAddKong = function () {
+    var info = this._pendingAddKong; this._pendingAddKong = null;
+    var m = this._melds[info.player][info.meldIndex];
+    m.tiles = [info.tile, info.tile, info.tile, info.tile]; m.type = 'kong'; m.added = true;
+    this._lastAction[info.player] = 'addKong';
+    this._phase = 'turn';
+    this._emit({ type: 'addKong', player: info.player, tile: info.tile });
+    this._log_push((info.player === 0 ? 'You' : this._names[info.player]) + ' upgrade' + (info.player === 0 ? '' : 's') + ' to a Kong of ' + T.name(info.tile));
+    this._kongStreak++;
+    this._turnPlayer = info.player; this._afterClaim = false;
+    this._drawReplacement(info.player);
+  };
+
+  Game.prototype._resolveRobKong = function () {
+    var info = this._pendingAddKong;
+    var votes = this._votes;
+    var winners = Object.keys(votes).map(Number).filter(function (p) { return votes[p].type === 'win'; });
+    if (winners.length) {
+      winners.sort(function (a, b) { return ((a - info.player + 4) % 4) - ((b - info.player + 4) % 4); });
+      var w = winners[0];
+      this._pendingAddKong = null; this._claimTile = null;
+      this._finalizeWin(w, votes[w].evaluation, { source: 'robKong', winTile: info.tile, payer: info.player });
+      return;
+    }
+    this._claimTile = null;
+    this._completeAddKong();
+  };
+
+  Game.prototype._doFlowerWin = function (p) {
+    var ev = evaluate(this._ctxFor(p, null, 'self', { flowerWin: true }));
+    this._finalizeWin(p, ev, { source: 'flowers', winTile: null, payer: null });
+  };
+
+  Game.prototype._finalizeWin = function (winner, evaluation, info) {
+    var payer = info.payer;
+    var d = (info.source === 'self' || info.source === 'flowers')
+      ? paymentsFn({ fan: evaluation.fan, winner: winner, source: 'self' })
+      : paymentsFn({ fan: evaluation.fan, winner: winner, source: info.source, payer: payer, payment: this._settings.payment, unit: this._settings.unit });
+    var scoresAfter = this._scores.map(function (s, i) { return s + d[i]; });
+    this._scores = scoresAfter;
+    this._lastAction[winner] = (info.source === 'self' ? 'selfWin' : (info.source === 'flowers' ? 'flowerWin' : 'win'));
+    var dealerStays = (winner === this._dealer);
+    var nextDealer = dealerStays ? this._dealer : (this._dealer + 1) % 4;
+    var nextRound = this._round;
+    if (!dealerStays && nextDealer === this._firstDealer) nextRound = this._round + 1;
+    var gameOver = nextRound >= this._settings.rounds || this._handNo >= 300;
+    var result = {
+      type: 'win', handNo: this._handNo, round: this._round, dealer: this._dealer, winner: winner, payer: (payer == null ? null : payer),
+      source: info.source, winTile: info.winTile, evaluation: evaluation, payments: d, scoresAfter: scoresAfter,
+      hands: this._snapshotHands(), dealerStays: dealerStays, nextDealer: nextDealer, nextRound: nextRound, gameOver: gameOver
+    };
+    this._lastResult = result;
+    this._phase = 'handEnd';
+    this._emit({ type: 'win', player: winner, result: result });
+    this._log_push(this._describeWin(winner, info, evaluation));
+    this._emit({ type: 'handEnd', result: result });
+  };
+
+  Game.prototype._describeWin = function (winner, info, ev) {
+    var who = winner === 0 ? 'You' : this._names[winner];
+    var verb = winner === 0 ? 'win' : 'wins';
+    var how;
+    if (info.source === 'flowers') how = 'with a Flower hand';
+    else if (info.source === 'self') how = 'by Self-Pick';
+    else if (info.source === 'robKong') how = 'by Robbing the Kong';
+    else how = 'on ' + (info.payer === 0 ? 'your' : (this._names[info.payer] + "'s")) + ' discard';
+    return who + ' ' + verb + ' ' + how + ' — ' + ev.fan + ' Fan!';
+  };
+
+  Game.prototype._snapshotHands = function () {
+    var out = [];
+    for (var p = 0; p < 4; p++) out.push({ hand: T.sort(this._hands[p]), melds: this._melds[p].map(cloneMeld), flowers: this._flowers[p].slice().sort(function (a, b) { return a - b; }) });
+    return out;
+  };
+
+  Game.prototype._finalizeDraw = function () {
+    var gameOver = this._round >= this._settings.rounds || this._handNo >= 300;
+    var result = {
+      type: 'draw', handNo: this._handNo, round: this._round, dealer: this._dealer, winner: null, payer: null, source: null,
+      winTile: null, evaluation: null, payments: [0, 0, 0, 0], scoresAfter: this._scores.slice(),
+      hands: this._snapshotHands(), dealerStays: true, nextDealer: this._dealer, nextRound: this._round, gameOver: gameOver
+    };
+    this._lastResult = result;
+    this._phase = 'handEnd';
+    this._emit({ type: 'drawGame', result: result });
+    this._log_push('Draw 流局 — the wall is exhausted.');
+    this._emit({ type: 'handEnd', result: result });
+  };
+
+  Game.prototype._finishGame = function () {
+    this._phase = 'gameEnd';
+    var standings = this._scores.map(function (s, i) { return { index: i, name: this._names[i], score: s, rank: 0 }; }, this);
+    standings.sort(function (a, b) { return b.score - a.score; });
+    standings.forEach(function (s, i) { s.rank = i + 1; });
+    this._standings = standings;
+    this._emit({ type: 'gameEnd', standings: standings });
+    this._log_push('Game over.');
+  };
+
+  Game.prototype.nextHand = function () {
+    if (this._phase !== 'handEnd') return { ok: false, error: 'not at hand end' };
+    var res = this._lastResult;
+    if (res.gameOver) { this._finishGame(); return { ok: true }; }
+    this._dealer = res.nextDealer;
+    this._dealerRepeat = res.dealerStays ? this._dealerRepeat + 1 : 0;
+    this._round = res.nextRound;
+    this._beginHand();
+    return { ok: true };
+  };
+
+  Game.prototype.on = function (fn) {
+    this._listeners.push(fn);
+    var self = this;
+    return function () { var idx = self._listeners.indexOf(fn); if (idx >= 0) self._listeners.splice(idx, 1); };
+  };
+  Game.prototype._emit = function (evt) {
+    this._listeners.slice().forEach(function (fn) { try { fn(evt); } catch (e) { if (typeof console !== 'undefined') console.error('HKMJ listener error', e); } });
+  };
+  Game.prototype._log_push = function (line) {
+    this._log.push(line);
+    if (this._log.length > 200) this._log.splice(0, this._log.length - 200);
+  };
+
+  // ------------------------------------------------------------------ view / hints
+
+  Game.prototype.getView = function (viewer, opts) {
+    opts = opts || {};
+    var revealAll = !!opts.revealAll || this._phase === 'handEnd' || this._phase === 'gameEnd';
+    var players = [];
+    for (var p = 0; p < 4; p++) {
+      var showHand = (p === viewer) || revealAll;
+      players.push({
+        index: p, name: this._names[p], isHuman: this._humans.indexOf(p) >= 0,
+        seatWind: (p - this._dealer + 4) % 4, isDealer: p === this._dealer, score: this._scores[p],
+        handCount: this._hands[p].length,
+        hand: showHand ? T.sort(this._hands[p]) : null,
+        drawn: (p === viewer && this._drawnTile[p] != null) ? this._drawnTile[p] : null,
+        melds: this._melds[p].map(cloneMeld),
+        flowers: this._flowers[p].slice().sort(function (a, b) { return a - b; }),
+        discards: this._discards[p].slice(),
+        lastAction: this._lastAction[p] || null
+      });
+    }
+    return {
+      viewer: viewer, handNo: this._handNo, round: this._round, dealer: this._dealer, firstDealer: this._firstDealer,
+      dealerRepeat: this._dealerRepeat, dice: this._dice.slice(), wallCount: this._wallCount(),
+      phase: this._phase, turn: this._turnPlayer, pending: this.getPending(), actions: this.getActions(viewer),
+      blockedWin: this._computeBlockedWin(viewer), lastDiscard: this._lastDiscard, claimTile: this._claimTile,
+      players: players, settings: this._settings,
+      result: (this._phase === 'handEnd' || this._phase === 'gameEnd') ? this._lastResult : null,
+      standings: this._phase === 'gameEnd' ? this._standings : null,
+      log: this._log.slice(-60)
+    };
+  };
+
+  Game.prototype._computeBlockedWin = function (viewer) {
+    if (this._phase === 'turn' && this._turnPlayer === viewer && !this._afterClaim) {
+      var winTile = this._winTileFor(viewer);
+      if (winTile != null) {
+        var ev = evaluate(this._ctxFor(viewer, winTile, 'self', { kongReplacement: Math.min(2, this._kongStreak), lastTile: this._wallCount() === 0 }));
+        if (ev.winning && !ev.valid) return { fan: ev.fan, minFan: this._settings.minFan };
+      }
+    }
+    if ((this._phase === 'claim' || this._phase === 'robKong') && this._waiting.indexOf(viewer) >= 0) {
+      var opts = this._claimOptions[viewer] || [];
+      var hasWin = opts.some(function (a) { return a.type === 'win'; });
+      if (!hasWin) {
+        var ev2 = evaluate(this._ctxFor(viewer, this._claimTile.tile, this._phase === 'robKong' ? 'robKong' : 'discard', { lastTile: this._phase === 'claim' && this._finalDiscard }));
+        if (ev2.winning && !ev2.valid) return { fan: ev2.fan, minFan: this._settings.minFan };
+      }
+    }
+    return null;
+  };
+
+  Game.prototype.getHints = function (p) {
+    var hand = this._hands[p].slice();
+    var drawn = (this._turnPlayer === p && this._phase === 'turn' && this._drawnTile[p] != null) ? this._drawnTile[p] : null;
+    var base = hand.slice();
+    if (drawn != null) { var di = base.indexOf(drawn); if (di >= 0) base.splice(di, 1); }
+    var melds = this._melds[p];
+    var optional = this._settings.optional;
+    var seatWind = (p - this._dealer + 4) % 4;
+    var waits = [];
+    for (var k = 0; k < 34; k++) {
+      var candidate = base.concat([k]);
+      if (isWinningShape(candidate, melds, optional)) {
+        var ev = evaluate({
+          hand: candidate, melds: melds.map(cloneMeld), winTile: k, source: 'self', kongReplacement: 0, lastTile: false,
+          seatWind: seatWind, roundWind: this._round, flowers: this._flowers[p].slice(), blessing: null, flowerWin: false, settings: this._settings
+        });
+        waits.push({ tile: k, left: this._unseenCount(p, k), fan: ev.fan, valid: ev.valid });
+      }
+    }
+    var shanten = waits.length > 0 ? 0 : this._estimateShanten(base, melds);
+    return { shanten: shanten, waits: waits, blockedWin: this._computeBlockedWin(p) };
+  };
+
+  Game.prototype._unseenCount = function (p, k) {
+    var count = 0;
+    this._hands[p].forEach(function (t) { if (t === k) count++; });
+    for (var q = 0; q < 4; q++) {
+      this._melds[q].forEach(function (m) { m.tiles.forEach(function (t) { if (t === k) count++; }); });
+      this._discards[q].forEach(function (t) { if (t === k) count++; });
+    }
+    var left = 4 - count;
+    return left < 0 ? 0 : left;
+  };
+
+  Game.prototype._estimateShanten = function (base, melds) {
+    var optional = this._settings.optional;
+    for (var i = 0; i < base.length; i++) {
+      var rest = base.slice(0, i).concat(base.slice(i + 1));
+      for (var k = 0; k < 34; k++) { if (isWinningShape(rest.concat([k]), melds, optional)) return 1; }
+    }
+    return 2;
+  };
+
+  // ------------------------------------------------------------------ persistence
+
+  Game.prototype.serialize = function () {
+    var s = {};
+    ['_settings', '_names', '_humans', '_firstDealerOpt', '_presetWalls', '_started', '_scores', '_round', '_dealer',
+      '_dealerRepeat', '_handNo', '_firstDealer', '_hands', '_melds', '_flowers', '_discards', '_drawnTile', '_lastAction',
+      '_hasDrawnBefore', '_firstDrawFlag', '_phase', '_turnPlayer', '_afterClaim', '_wall', '_front', '_back', '_dice',
+      '_lastDiscard', '_claimTile', '_waiting', '_claimOptions', '_votes', '_pendingAddKong', '_kongStreak',
+      '_finalDiscard', '_dealerActed', '_handDiscardCount', '_anyMeldDeclaredThisHand', '_log', '_lastResult', '_standings'
+    ].forEach(function (k) { s[k.slice(1)] = this[k]; }, this);
+    s.rngState = this._rng.getState();
+    return JSON.stringify(s);
+  };
+
+  Game.deserialize = function (json) {
+    var s = typeof json === 'string' ? JSON.parse(json) : json;
+    var g = new Game({ settings: s.settings, names: s.names, humans: s.humans, firstDealer: s.firstDealerOpt, presetWalls: s.presetWalls });
+    Object.keys(s).forEach(function (k) {
+      if (k === 'rngState' || k === 'settings' || k === 'names' || k === 'humans' || k === 'firstDealerOpt' || k === 'presetWalls') return;
+      g['_' + k] = s[k];
+    });
+    g._rng = HKMJ.RNG.fromState(s.rngState);
+    return g;
+  };
+
+  /** Test helper (SPEC §5.1). Assumes dealer 0 — pair with `firstDealer:0` when constructing the Game. */
+  Game.buildWall = function (spec, rng) {
+    spec = spec || {};
+    rng = rng || HKMJ.RNG();
+    var wall = new Array(144).fill(null);
+    var usedCount = new Array(42).fill(0);
+    function place(idx, kind) { wall[idx] = kind; usedCount[kind]++; }
+    var order = dealOrderIndices(0);
+    var ptr = [0, 0, 0, 0];
+    var hands = spec.hands || [[], [], [], []];
+    var front = 0;
+    order.forEach(function (pl) {
+      var tiles = hands[pl] || [];
+      if (ptr[pl] >= tiles.length) throw new Error('buildWall: not enough tiles specified for hand ' + pl);
+      place(front++, tiles[ptr[pl]++]);
+    });
+    (spec.draws || []).forEach(function (k) { place(front++, k); });
+    var back = 143;
+    (spec.replacements || []).forEach(function (k) { place(back--, k); });
+    var totalCount = new Array(42).fill(0);
+    T.fullSet().forEach(function (k) { totalCount[k]++; });
+    var leftover = [];
+    for (var k = 0; k < 42; k++) { for (var c = usedCount[k]; c < totalCount[k]; c++) leftover.push(k); }
+    rng.shuffle(leftover);
+    var li = 0;
+    for (var idx = front; idx <= back; idx++) wall[idx] = leftover[li++];
+    return wall;
+  };
+
+  HKMJ.Game = Game;
+
+  // ------------------------------------------------------------------ AI
+
+  function findFirst(arr, pred) { for (var i = 0; i < arr.length; i++) if (pred(arr[i])) return arr[i]; return null; }
+  function isWinType(a) { return a.type === 'win' || a.type === 'selfWin' || a.type === 'flowerWin'; }
+  function countExposedMelds(view) { return view.players[view.viewer].melds.filter(function (m) { return !m.concealed; }).length; }
+
+  function tileUsefulness(kind, counts) {
+    if (T.isHonour(kind)) return counts[kind] >= 2 ? 6 : 1;
+    var r = T.rankOf(kind), s = T.suitOf(kind);
+    var score = counts[kind] * 3;
+    for (var d = -2; d <= 2; d++) {
+      if (d === 0) continue;
+      var rr = r + d;
+      if (rr >= 1 && rr <= 9) score += (counts[T.tileOf(s, rr)] || 0) * (Math.abs(d) === 1 ? 2 : 1);
+    }
+    return score;
+  }
+  function safetyBonus(kind, view) {
+    var n = 0;
+    view.players.forEach(function (pl) {
+      (pl.discards || []).forEach(function (t) { if (t === kind) n++; });
+      (pl.melds || []).forEach(function (m) { m.tiles.forEach(function (t) { if (t === kind) n++; }); });
+    });
+    return n;
+  }
+
+  function decideClaim(view, actions, level) {
+    var kong = findFirst(actions, function (a) { return a.type === 'kong'; });
+    if (kong) return kong;
+    var pong = findFirst(actions, function (a) { return a.type === 'pong'; });
+    if (pong) {
+      if (level === 'easy' || countExposedMelds(view) <= 1) return pong;
+      return pong; // simplified: still claim (real ai.js should weigh the plan more carefully)
+    }
+    var chow = findFirst(actions, function (a) { return a.type === 'chow'; });
+    if (chow && (level === 'easy' || countExposedMelds(view) <= 1)) return chow;
+    return findFirst(actions, function (a) { return a.type === 'pass'; }) || actions[0];
+  }
+
+  function decideTurn(view, actions, level) {
+    var kongAct = findFirst(actions, function (a) { return a.type === 'concealedKong' || a.type === 'addKong'; });
+    if (kongAct) return kongAct;
+    var discards = actions.filter(function (a) { return a.type === 'discard'; });
+    if (!discards.length) return actions[0];
+    var me = view.players[view.viewer];
+    var counts = T.counts(me.hand || []);
+    var best = null, bestScore = Infinity;
+    discards.forEach(function (a) {
+      var score = tileUsefulness(a.tile, counts);
+      if (level !== 'easy') score -= safetyBonus(a.tile, view) * 1.5;
+      if (score < bestScore) { bestScore = score; best = a; }
+    });
+    return best || discards[0];
+  }
+
+  HKMJ.AI = {
+    decide: function (view, actions, opts) {
+      opts = opts || {};
+      try {
+        if (!actions || !actions.length) return { type: 'pass' };
+        var win = findFirst(actions, isWinType);
+        if (win) return win;
+        if (actions.length === 1) return actions[0];
+        var isClaim = actions.some(function (a) { return a.type === 'pass'; }) && actions.some(function (a) { return a.type === 'pong' || a.type === 'kong' || a.type === 'chow'; });
+        return isClaim ? decideClaim(view, actions, opts.level || 'normal') : decideTurn(view, actions, opts.level || 'normal');
+      } catch (e) {
+        if (typeof console !== 'undefined') console.error('HKMJ.AI.decide error', e);
+        var fb = actions && (findFirst(actions, function (a) { return a.type === 'pass'; }) || findFirst(actions, function (a) { return a.type === 'discard'; }) || actions[0]);
+        return fb || { type: 'pass' };
+      }
+    },
+    suggest: function (view, actions) {
+      try {
+        if (!actions || !actions.length) return { action: { type: 'pass' }, reason: 'Nothing to do right now.' };
+        var win = findFirst(actions, isWinType);
+        if (win) return { action: win, reason: 'You have a valid winning hand — take it.' };
+        var isClaim = actions.some(function (a) { return a.type === 'pass'; }) && actions.some(function (a) { return a.type === 'pong' || a.type === 'kong' || a.type === 'chow'; });
+        if (isClaim) {
+          var c = decideClaim(view, actions, 'hard');
+          return { action: c, reason: c.type === 'pass' ? 'Claiming would not clearly help your hand toward the minimum Fan.' : 'Claiming this keeps your plan on track.' };
+        }
+        var t = decideTurn(view, actions, 'hard');
+        return { action: t, reason: t.type === 'discard' ? 'A safer, less useful tile to let go of.' : 'Recommended.' };
+      } catch (e) {
+        if (typeof console !== 'undefined') console.error('HKMJ.AI.suggest error', e);
+        return { action: actions[0], reason: 'Fallback suggestion.' };
+      }
+    }
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = HKMJ;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+;
+/* ---- src/ui/tile-art.js ---- */
+/* HK Mahjong — src/ui/tile-art.js
+ * HKMJ.TileArt: builds one inline SVG <symbol> sprite (viewBox "0 0 60 80" per symbol) covering all 42 tile
+ * kinds plus the tile back, per UI_SPEC.md §2 "Tile faces". Pure string generation — no DOM, safe in Node.
+ * The sprite draws only the FACE ART (pips / characters / motifs); the ivory/jade "chrome" of a physical tile
+ * (rounded corners, back-layer thickness, drop shadow) is CSS on the .tile element that hosts the <use>.
+ */
+(function (root) {
+  'use strict';
+  var HKMJ = root.HKMJ || (root.HKMJ = {});
+  var T = HKMJ.Tiles;
+
+  var INK = '#1c2230', RED = '#c1272d', BLUE = '#1f4f9e', GREEN = '#1f7a3a', GOLD = '#c9a44c';
+  var CJK = '\'Songti TC\',\'STSong\',\'Noto Serif CJK TC\',\'Noto Serif TC\',\'PMingLiU\',\'MingLiU\',serif';
+
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function sym(id, inner) { return '<symbol id="' + id + '" viewBox="0 0 60 80">' + inner + '</symbol>'; }
+  function text(x, y, s, opts) {
+    opts = opts || {};
+    var size = opts.size || 30, color = opts.color || INK, weight = opts.weight || '700';
+    return '<text x="' + x + '" y="' + y + '" font-family="' + CJK + '" font-size="' + size + '" font-weight="' + weight +
+      '" fill="' + color + '" text-anchor="middle" dominant-baseline="middle">' + esc(s) + '</text>';
+  }
+
+  // ------------------------------------------------------------------ pip primitives on a shared 3x3 grid
+  // columns x = 16 / 30 / 44 ; rows y = 20 / 40 / 60 (viewBox is 60 wide, 80 tall)
+  var COL = [16, 30, 44], ROW = [20, 40, 60];
+  function pt(col, row) { return { x: COL[col], y: ROW[row] }; }
+
+  function dotRing(p, r, color) {
+    return '<circle cx="' + p.x + '" cy="' + p.y + '" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="' + (r * 0.32).toFixed(1) + '"/>' +
+      '<circle cx="' + p.x + '" cy="' + p.y + '" r="' + (r * 0.4).toFixed(1) + '" fill="' + color + '"/>';
+  }
+  function bigOrnateDot(p) {
+    return '<circle cx="' + p.x + '" cy="' + p.y + '" r="17" fill="none" stroke="' + RED + '" stroke-width="3"/>' +
+      '<circle cx="' + p.x + '" cy="' + p.y + '" r="11.5" fill="none" stroke="' + BLUE + '" stroke-width="2.6"/>' +
+      '<circle cx="' + p.x + '" cy="' + p.y + '" r="6" fill="' + GREEN + '"/>';
+  }
+  function stickBar(p, color, h) {
+    h = h || 20; var w = h * 0.34;
+    var x = p.x - w / 2, y = p.y - h / 2;
+    var s = '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + h + '" rx="' + (w * 0.35).toFixed(1) + '" fill="none" stroke="' + color + '" stroke-width="2"/>';
+    var n1 = y + h * 0.34, n2 = y + h * 0.67;
+    s += '<line x1="' + x.toFixed(1) + '" y1="' + n1.toFixed(1) + '" x2="' + (x + w).toFixed(1) + '" y2="' + n1.toFixed(1) + '" stroke="' + color + '" stroke-width="1.4"/>';
+    s += '<line x1="' + x.toFixed(1) + '" y1="' + n2.toFixed(1) + '" x2="' + (x + w).toFixed(1) + '" y2="' + n2.toFixed(1) + '" stroke="' + color + '" stroke-width="1.4"/>';
+    return s;
+  }
+  function birdGlyph(cx, cy) {
+    var s = '';
+    s += '<path d="M ' + (cx - 11) + ' ' + (cy + 20) + ' Q ' + (cx - 20) + ' ' + (cy - 2) + ' ' + (cx - 6) + ' ' + (cy - 14) + ' Q ' + (cx - 12) + ' ' + (cy + 6) + ' ' + (cx - 2) + ' ' + (cy + 16) + ' Z" fill="' + GREEN + '"/>'; // wing
+    s += '<ellipse cx="' + cx + '" cy="' + (cy + 8) + '" rx="11" ry="16" fill="' + GREEN + '"/>'; // body
+    s += '<circle cx="' + cx + '" cy="' + (cy - 12) + '" r="6.5" fill="' + GREEN + '"/>'; // head
+    s += '<path d="M ' + (cx - 2) + ' ' + (cy - 20) + ' L ' + cx + ' ' + (cy - 28) + ' L ' + (cx + 4) + ' ' + (cy - 19) + ' Z" fill="' + RED + '"/>'; // crest
+    s += '<circle cx="' + (cx + 3) + '" cy="' + (cy - 13) + '" r="1.3" fill="' + INK + '"/>'; // eye
+    s += '<path d="M ' + cx + ' ' + (cy + 22) + ' L ' + (cx - 5) + ' ' + (cy + 33) + ' L ' + cx + ' ' + (cy + 29) + ' L ' + (cx + 5) + ' ' + (cy + 33) + ' Z" fill="' + BLUE + '"/>'; // tail
+    return s;
+  }
+
+  var DOT_LAYOUTS = {
+    1: function () { return bigOrnateDot(pt(1, 1)); },
+    2: function () { return dotRing(pt(1, 0), 7, GREEN) + dotRing(pt(1, 2), 7, GREEN); },
+    3: function () { return dotRing(pt(0, 0), 6.5, GREEN) + dotRing(pt(1, 1), 6.5, RED) + dotRing(pt(2, 2), 6.5, BLUE); },
+    4: function () { return [pt(0, 0), pt(2, 0), pt(0, 2), pt(2, 2)].map(function (p) { return dotRing(p, 7, BLUE); }).join(''); },
+    5: function () { return [pt(0, 0), pt(2, 0), pt(0, 2), pt(2, 2)].map(function (p) { return dotRing(p, 6.5, BLUE); }).join('') + dotRing(pt(1, 1), 7, RED); },
+    6: function () {
+      return [pt(0, 0), pt(2, 0)].map(function (p) { return dotRing(p, 6.5, GREEN); }).join('') +
+        [pt(0, 1), pt(2, 1), pt(0, 2), pt(2, 2)].map(function (p) { return dotRing(p, 6.5, RED); }).join('');
+    },
+    7: function () {
+      return [pt(0, 0), pt(1, 1), pt(2, 2)].map(function (p) { return dotRing(p, 6, GREEN); }).join('') +
+        [pt(2, 0), pt(0, 1), pt(2, 1), pt(0, 2)].map(function (p) { return dotRing(p, 6, RED); }).join('');
+    },
+    8: function () {
+      var cols = [22, 38], rows = [13, 30, 47, 64], out = '';
+      cols.forEach(function (x) { rows.forEach(function (y) { out += dotRing({ x: x, y: y }, 5.6, BLUE); }); });
+      return out;
+    },
+    9: function () {
+      var colors = [BLUE, RED, GREEN], out = '';
+      for (var r = 0; r < 3; r++) for (var c = 0; c < 3; c++) out += dotRing(pt(c, r), 5.8, colors[r]);
+      return out;
+    }
+  };
+
+  var STICK_LAYOUTS = {
+    1: function () { return birdGlyph(30, 40); },
+    2: function () { return stickBar(pt(1, 0), GREEN) + stickBar(pt(1, 2), GREEN); },
+    3: function () { return stickBar(pt(1, 0), GREEN) + stickBar(pt(0, 2), GREEN) + stickBar(pt(2, 2), GREEN); },
+    4: function () { return [pt(0, 0), pt(2, 0), pt(0, 2), pt(2, 2)].map(function (p) { return stickBar(p, GREEN); }).join(''); },
+    5: function () { return [pt(0, 0), pt(2, 0), pt(0, 2), pt(2, 2)].map(function (p) { return stickBar(p, GREEN); }).join('') + stickBar(pt(1, 1), RED); },
+    6: function () { return [0, 1, 2].map(function (r) { return stickBar(pt(0, r), GREEN) + stickBar(pt(2, r), GREEN); }).join(''); },
+    7: function () { return stickBar(pt(1, 0), RED) + [0, 1, 2].map(function (r) { return stickBar(pt(0, r), GREEN) + stickBar(pt(2, r), GREEN); }).join(''); },
+    8: function () {
+      var out = '';
+      [14, 32, 50, 68].forEach(function (y, i) { out += stickBar({ x: 22, y: y }, GREEN); out += stickBar({ x: 38, y: y + (i % 2 ? -7 : 7) }, GREEN); });
+      return out;
+    },
+    9: function () {
+      var out = '';
+      for (var r = 0; r < 3; r++) for (var c = 0; c < 3; c++) out += stickBar(pt(c, r), c === 1 ? RED : GREEN);
+      return out;
+    }
+  };
+
+  function manSymbol(rank) {
+    return text(30, 32, T.NUM_ZH[rank - 1], { size: 26, color: INK }) + text(30, 62, '萬', { size: 28, color: RED });
+  }
+  function dotsSymbol(rank) { return DOT_LAYOUTS[rank](); }
+  function sticksSymbol(rank) { return STICK_LAYOUTS[rank](); }
+  function windSymbol(zh) { return text(30, 44, zh, { size: 44, color: INK }); }
+  function dragonSymbol(idx) {
+    if (idx === 0) return text(30, 44, '中', { size: 44, color: RED });
+    if (idx === 1) return text(30, 44, '發', { size: 40, color: GREEN });
+    return '<rect x="13" y="15" width="34" height="50" rx="5" fill="none" stroke="' + BLUE + '" stroke-width="3"/>' +
+      '<rect x="19" y="21" width="22" height="38" rx="3" fill="none" stroke="' + BLUE + '" stroke-width="2"/>';
+  }
+
+  var FLOWER_COLOR = ['#c65f8a', '#7a5ba6', GOLD, GREEN];
+  function flowerMotif(idx, cx, cy) {
+    var color = FLOWER_COLOR[idx];
+    if (idx === 0) { // plum blossom — 5 petals in a ring
+      var s = '';
+      for (var i = 0; i < 5; i++) {
+        var a = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+        s += '<circle cx="' + (cx + Math.cos(a) * 7).toFixed(1) + '" cy="' + (cy + Math.sin(a) * 7).toFixed(1) + '" r="5" fill="' + color + '"/>';
+      }
+      return s + '<circle cx="' + cx + '" cy="' + cy + '" r="3" fill="' + GOLD + '"/>';
+    }
+    if (idx === 1) { // orchid — three curved petal strokes fanning out
+      var s2 = '';
+      [-30, 0, 30].forEach(function (deg) {
+        s2 += '<path d="M ' + cx + ' ' + (cy + 10) + ' Q ' + cx + ' ' + (cy - 12) + ' ' + cx + ' ' + (cy - 18) +
+          '" stroke="' + color + '" stroke-width="4" fill="none" stroke-linecap="round" transform="rotate(' + deg + ' ' + cx + ' ' + (cy + 10) + ')"/>';
+      });
+      return s2 + '<circle cx="' + cx + '" cy="' + (cy + 8) + '" r="2.6" fill="' + GOLD + '"/>';
+    }
+    if (idx === 2) { // chrysanthemum — gold sunburst
+      var s3 = '';
+      for (var j = 0; j < 8; j++) {
+        var a2 = (Math.PI * 2 * j) / 8;
+        s3 += '<line x1="' + cx + '" y1="' + cy + '" x2="' + (cx + Math.cos(a2) * 11).toFixed(1) + '" y2="' + (cy + Math.sin(a2) * 11).toFixed(1) + '" stroke="' + color + '" stroke-width="2.6" stroke-linecap="round"/>';
+      }
+      return s3 + '<circle cx="' + cx + '" cy="' + cy + '" r="4" fill="' + color + '"/>';
+    }
+    // bamboo — two stalk segments + leaves
+    return stickBar({ x: cx, y: cy + 3 }, color, 26) +
+      '<path d="M ' + cx + ' ' + (cy - 6) + ' L ' + (cx + 12) + ' ' + (cy - 14) + ' L ' + (cx + 3) + ' ' + (cy - 6) + ' Z" fill="' + color + '"/>' +
+      '<path d="M ' + cx + ' ' + (cy + 2) + ' L ' + (cx - 12) + ' ' + (cy - 4) + ' L ' + (cx - 3) + ' ' + (cy + 4) + ' Z" fill="' + color + '"/>';
+  }
+
+  var SEASON_BAND = [['#f4c9d8', '#bfe3b8'], ['#bfe3b8', '#f6e08a'], ['#f2b878', '#e0714f'], ['#bcd7ef', '#eef6fb']];
+  function seasonMotif(idx, gradId) {
+    var band = SEASON_BAND[idx];
+    return '<defs><linearGradient id="' + gradId + '" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0" stop-color="' + band[0] + '"/><stop offset="1" stop-color="' + band[1] + '"/></linearGradient></defs>' +
+      '<rect x="10" y="30" width="40" height="20" rx="8" fill="url(#' + gradId + ')" stroke="' + GOLD + '" stroke-width="1"/>';
+  }
+
+  function bonusSymbol(k) {
+    var isFlower = T.isFlower(k);
+    var idx = k - (isFlower ? T.FLOWER0 : T.SEASON0);
+    var num = T.bonusNumber(k);
+    var zh = isFlower ? T.FLOWER_ZH[idx] : T.SEASON_ZH[idx];
+    var color = isFlower ? FLOWER_COLOR[idx] : INK;
+    var s = text(11, 16, String(num), { size: 13, color: INK, weight: '600' });
+    s += text(48, 18, zh, { size: 18, color: color, weight: '700' });
+    s += isFlower ? flowerMotif(idx, 30, 46) : (seasonMotif(idx, 'hkmj-season-grad-' + idx) + text(30, 44, zh, { size: 15, color: INK, weight: '600' }));
+    return s;
+  }
+
+  function backSymbol() {
+    return '<rect x="4" y="4" width="52" height="72" rx="6" fill="#1f7a5c"/>' +
+      '<rect x="9" y="9" width="42" height="62" rx="4" fill="none" stroke="#2e9a76" stroke-width="2"/>' +
+      '<rect x="15" y="15" width="30" height="50" rx="3" fill="none" stroke="#2e9a76" stroke-width="1" opacity="0.6"/>';
+  }
+
+  function buildSymbol(k) {
+    if (T.isSuit(k)) {
+      var suit = T.suitOf(k), rank = T.rankOf(k);
+      if (suit === 0) return manSymbol(rank);
+      if (suit === 1) return dotsSymbol(rank);
+      return sticksSymbol(rank);
+    }
+    if (T.isWind(k)) return windSymbol(T.WIND_ZH[k - T.EAST]);
+    if (T.isDragon(k)) return dragonSymbol(k - T.RED);
+    if (T.isBonus(k)) return bonusSymbol(k);
+    return '';
+  }
+
+  function spriteSVG() {
+    var out = '<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">';
+    for (var k = 0; k < T.ALL_KINDS; k++) out += sym('tk-' + k, buildSymbol(k));
+    out += sym('tk-back', backSymbol());
+    out += '</svg>';
+    return out;
+  }
+
+  HKMJ.TileArt = {
+    spriteSVG: spriteSVG,
+    symbolId: function (kind) { return 'tk-' + kind; },
+    BACK_ID: 'tk-back'
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = HKMJ.TileArt;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+;
+/* ---- src/ui/rules-content.js ---- */
+/* HK Mahjong — src/ui/rules-content.js
+ * HKMJ.RulesContent: static reference data for the Rules 牌例 screen, paraphrased from the booklet (see
+ * UI_SPEC.md §5). Feature `id`s match SPEC.md §3.3 exactly (and, for optional † hands, double as the
+ * corresponding HKMJ.DEFAULT_SETTINGS.optional key) so the UI can show each hand's current on/off state.
+ * Plain data — no logic, no DOM. `example` strings are core/tiles.js notation, parsed by render.js.
+ */
+(function (root) {
+  'use strict';
+  var HKMJ = root.HKMJ || (root.HKMJ = {});
+
+  function card(id, fanText, name, zh, desc, opts) {
+    opts = opts || {};
+    return { id: id, fanText: fanText, name: name, zh: zh, desc: desc, optional: !!opts.optional, example: opts.example || null, winTile: opts.winTile || null, note: opts.note || null };
+  }
+
+  var TABS = [
+    {
+      id: 'basics', label: 'Basics', zh: '基本',
+      sections: [
+        { heading: 'The shape of a hand', zh: '牌型',
+          body: 'A winning hand is four sets plus one pair. A set is a chow (three tiles in a row, one suit), a pong (three identical tiles) or a kong (four identical tiles). Kongs and pongs score the same everywhere unless a rule says otherwise.' },
+        { heading: 'Seats and the deal', zh: '座位與開牌',
+          body: 'You sit South of the first dealer, who is always East. Seating and the draw both run counter-clockwise; only the wall itself is broken and drawn from in the opposite sense, which is the one exception. East deals four tiles to each player, three times round, then one more each, then takes a 14th tile.' },
+        { heading: 'Turn order and claims', zh: '出牌與截糊',
+          body: 'After a discard, the turn passes to the player on the discarder’s right. Anyone may Pong or Kong a discard; only the player to the discarder’s left may Chow it. If several players want the same discard, a win outranks a Kong/Pong, which outranks a Chow, and among competing wins the player closest to the discarder (going the play direction) takes it.' },
+        { heading: 'Minimum and limit', zh: '最低與頂糊',
+          body: 'This table plays with a minimum of ' + '3' + ' Fan (adjustable in Settings) — a complete hand worth less cannot be declared a win. Scoring stops adding at 13 Fan: anything above that still pays the 13-Fan limit.' },
+        { heading: 'The deal moving on', zh: '轉莊',
+          body: 'East keeps dealing after winning or after a drawn hand; otherwise the deal passes to the player on East’s right. A full game runs four rounds — East, South, West, North — advancing each time the deal cycles all the way back to the very first dealer.' }
+        ]
+    },
+    {
+      id: 'winActions', label: 'Win Actions', zh: '食糊動作', color: 'green',
+      cards: [
+        card('selfPick', '1', 'Self-Pick', '自摸', 'You complete your hand by drawing your own winning tile rather than taking a discard.'),
+        card('kongReplacement', '2', 'Win by Kong Replacement', '槓上開花', 'Your winning tile is the replacement you draw immediately after declaring a Kong. Replaces Self-Pick — you score this instead, not both.', { example: '345s678s99s 發發發', winTile: '9s' }),
+        card('doubleKong', '9', 'Double Kong Replacement', '槓上槓', 'You Kong, then Kong again on that replacement tile, then win on the second replacement. Replaces both Self-Pick and Win by Kong Replacement.'),
+        card('concealed', '1', 'Concealed Hand', '門前清', 'You reach the win without ever Chow-ing or Pong-ing (concealed Kongs are still allowed). Winning on someone’s discard is fine — you just cannot have exposed any set.'),
+        card('robKong', '1', 'Robbing the Kong', '搶槓', 'Another player upgrades an exposed Pong to a Kong, and the tile they add happens to complete your hand — you win on it before the Kong takes effect.', { example: '發發發中中中 234678m 55m', winTile: '7m' }),
+        card('moon', '1', 'Moon Under The Sea', '海底撈月', 'Your winning tile is either the very last tile of the wall, or the very last discard of the hand.')
+      ]
+    },
+    {
+      id: 'setType', label: 'Hands by Set Type', zh: '牌型種類', color: 'terracotta',
+      cards: [
+        card('allSequences', '1', 'All Sequences', '平糊', 'All four sets are chows; the pair can be anything, including an honour tile.', { example: '234m567m345p678s 東東', winTile: '5p' }),
+        card('allTriplets', '3', 'All Triplets', '對對糊', 'All four sets are Pongs or Kongs, plus a pair.', { example: '111m東東東 33m', winTile: '3m' }),
+        card('allConcealedTriplets', '8', 'All Concealed Triplets', '四暗刻', 'All four sets are triplets and none were exposed by Pong — concealed Kongs are fine. A discard that completes your final triplet still lets you win, but that one set counts as exposed, so the hand downgrades to All Triplets. Replaces All Triplets, and Concealed Hand is automatically included.'),
+        card('allQuadruplets', '13', 'All Quadruplets', '四槓子', 'All four sets are Kongs, plus a pair — an automatic limit hand. Replaces All Triplets (and the † Kong bonus).')
+      ]
+    },
+    {
+      id: 'tileType', label: 'Hands by Tile Type', zh: '牌種種類', color: 'blue',
+      cards: [
+        card('dragon', '1 each', 'Dragon', '三元牌', 'A Pong or Kong of any one dragon (中 Red, 發 Green, 白 White) scores 1 Fan; holding more than one dragon triplet stacks.'),
+        card('smallThreeDragons', '5', 'Small Three Dragons', '小三元', 'Two dragon triplets plus a pair of the third dragon. Replaces the per-triplet Dragon score.'),
+        card('bigThreeDragons', '8', 'Big Three Dragons', '大三元', 'All three dragons as triplets. Replaces Dragon and Small Three Dragons.'),
+        card('roundWind', '1', 'Round Wind', '圈風', 'A Pong/Kong of the current round’s wind.'),
+        card('seatWind', '1', 'Seat Wind', '門風', 'A Pong/Kong of your own seat wind. One triplet that is both your seat wind and the round wind scores both, for 2 Fan.'),
+        card('smallFourWinds', '6', 'Small Four Winds', '小四喜', 'Three wind triplets plus a pair of the fourth wind. Replaces Round Wind and Seat Wind.'),
+        card('bigFourWinds', '13', 'Big Four Winds', '大四喜', 'All four winds as triplets — an automatic limit hand on its own.'),
+        card('mixedFlush', '3', 'Mixed Flush', '混一色', 'Every tile is from one suit, plus any honours.', { example: '123m456m789m中中中 東東', winTile: '9m' }),
+        card('fullFlush', '7', 'Full Flush', '清一色', 'Every tile is from one suit — no honours at all. Replaces Mixed Flush.'),
+        card('mixedTerminals', '4', 'Mixed Terminals', '混么九', 'Only 1s, 9s and honours, with at least one of each kind. All Triplets is already folded into this value.'),
+        card('allTerminals', '13', 'All Terminals', '清么九', 'Only 1s and 9s — an automatic limit hand. Replaces Mixed Terminals and All Triplets.'),
+        card('allHonours', '10', 'All Honours', '字一色', 'Every tile is a wind or dragon. All Triplets is already folded into this value; a flush bonus never applies since there are no suit tiles.'),
+        card('kong', '1 open / 2 concealed', 'Kong', '槓', 'Table option (off by default): each Kong you hold scores on top of everything else — more if it was concealed, since nobody fed it to you. Superseded by All Quadruplets.', { optional: true })
+      ]
+    },
+    {
+      id: 'special', label: 'Special Hands', zh: '特殊牌型', color: 'olive',
+      cards: [
+        card('sevenPairs', '4', 'Seven Pairs', '七對子', 'Seven different pairs, no sets at all. Stacks only with a flush or All Honours — no dragon, wind, triplet, Kong or Mixed Terminals bonus applies. Concealed Hand is automatically included since you can never Chow or Pong here.', { optional: true }),
+        card('luxurySevenPairs', '2 each', 'Luxury Seven Pairs', '豪華七對', 'A Seven Pairs hand where one pair is actually all four copies of a tile, counted as two of the seven pairs. Scores per such set; a declared Kong would break the shape entirely.', { optional: true }),
+        card('knitted', '5', 'Knitted Tiles', '組合龍', 'Nine tiles that "knit" the three suits together — 1-4-7 of one suit, 2-5-8 of a second, 3-6-9 of the third — plus one ordinary set and a pair. The ordinary set can still be Chowed or Ponged and still scores its own bonuses; a flush never applies since three suits are in play.', { optional: true }),
+        card('lesserHonours', '8', 'Lesser Honours', '全不靠', 'Fourteen single tiles, no sets or pair: a mix of honours plus one knitted run per suit (9 knitted + 5 honours, or 8 knitted + 6 honours). Concealed Hand is automatically included; Self-Pick and bonus tiles still add on top.', { optional: true }),
+        card('greaterHonours', '10', 'Greater Honours', '七星不靠', 'All seven honour tiles as singles, plus any seven knitted tiles — fourteen singles, no sets or pair. Concealed by definition; Self-Pick and bonus tiles still add on top.', { optional: true }),
+        card('thirteenOrphans', '13', 'Thirteen Orphans', '十三么', 'One each of the 1 and 9 of every suit plus all seven honours, and a duplicate of any one of them. An automatic limit hand; concealed by definition.'),
+        card('nineGates', '13', 'Nine Gates', '九蓮寶燈', '1112345678999 of one suit, plus any one more tile of that suit as the winner — nine different tiles could complete it. Must be fully concealed; an automatic limit hand (the Full Flush inside it is not added separately).'),
+        card('heaven', '13', 'Blessing of Heaven', '天糊', 'The dealer’s opening 14 tiles are already a complete hand. An automatic limit win — the shape alone is enough, however little it would otherwise score.'),
+        card('earth', '13', 'Blessing of Earth', '地糊', 'A non-dealer completes their hand on the dealer’s very first discard of the game. An automatic limit win.'),
+        card('man', '13', 'Blessing of Man', '人糊', 'A non-dealer self-picks a winning tile on their own very first draw, before anyone has Chowed, Ponged or Konged. An automatic limit win.')
+      ]
+    },
+    {
+      id: 'bonus', label: 'Bonus Tiles', zh: '花牌', color: 'magenta',
+      cards: [
+        card('noFlowers', '1', 'No Flowers', '無花', 'You drew none of the eight bonus tiles all hand — a small reward for their absence.'),
+        card('seatFlower', '1 each', 'Seat Flower or Season', '正花', 'Each flower or season you hold that matches your seat number (East 1, South 2, West 3, North 4) scores 1 Fan.'),
+        card('allFlowers', '2', 'All Flowers', '一檯花', 'You hold all four flowers 梅蘭菊竹. A four-tile mix drawn from both the flower and season groups does not count.'),
+        card('allSeasons', '2', 'All Seasons', '一檯花', 'You hold all four seasons 春夏秋冬.'),
+        card('sevenFlowers', '3', 'Seven Flowers', '花糊', 'Collect seven of the eight bonus tiles and you may declare an instant win, whatever your hand looks like.'),
+        card('eightFlowers', '8', 'Eight Flowers', '大花糊', 'Collect all eight bonus tiles for an instant win, whatever your hand looks like.')
+      ]
+    },
+    {
+      id: 'payment', label: 'Payment Table', zh: '賠付表', color: 'gold',
+      points: [1, 2, 4, 8, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384],
+      notes: [
+        'Self-Pick: every other player pays the full points for your Fan total.',
+        'Discard (“discarder pays all” 全銃制, the default here): only the discarder pays, at double the points — this raises the cost of feeding someone a big hand.',
+        'Older tables share that cost instead: the discarder still pays double points, and the other two each pay single points, for the same total.',
+        'Playing with chips instead of points is quicker — pay the Fan count itself, 5 Fan = 5 chips — but it flattens the reward for a big hand: a limit hand only pays 13 chips instead of 384 points.'
+      ]
+    },
+    {
+      id: 'fanCombos', label: 'Fan Combinations', zh: '番組合',
+      intro: 'Every hand’s total is the SUM of its matching features — except where one feature explicitly replaces a smaller one it already contains (shown as an arrow below). A few representative chains from the booklet:',
+      chains: [
+        { title: 'Mixed Flush chain', zh: '混一色', steps: ['Mixed Flush 3', '+ All Sequences → 4', '+ All Triplets → 6', '+ Full Flush replaces → 7', '+ Dragon (each) → +1', '+ Self-Pick → +1', '+ Concealed Hand → +1'] },
+        { title: 'Dragon chain', zh: '三元牌', steps: ['One dragon triplet 1', '+ a second → 2', '+ Small Three Dragons replaces → 5', '+ Big Three Dragons replaces → 8'] },
+        { title: 'Wind chain', zh: '風牌', steps: ['Seat or Round Wind 1', '+ both on one triplet → 2', '+ Small Four Winds replaces → 6', '+ Big Four Winds replaces → 13 (limit)'] },
+        { title: 'Seven Pairs chain', zh: '七對子', steps: ['Seven Pairs 4', '+ Luxury (each quad) → +2', '+ Mixed Flush → 7', '+ Full Flush instead → 11', '+ All Honours instead → 13 (limit)'] }
+      ]
+    }
+  ];
+
+  HKMJ.RulesContent = { tabs: TABS };
+  if (typeof module !== 'undefined' && module.exports) module.exports = HKMJ.RulesContent;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+;
+/* ---- src/ui/render.js ---- */
+/* HK Mahjong — src/ui/render.js
+ * HKMJ.UI.render*: PURE functions (view/state -> HTML string). No `document`, no `window`, no timers — safe to
+ * run and unit-test in plain Node (see UI_SPEC.md §7 / tests/ui_render.test.js). app.js owns all DOM mounting
+ * and event wiring; it re-renders by setting innerHTML from these functions and uses event delegation with
+ * `data-action` (+ `data-*`) attributes, which this file documents inline where each is produced.
+ */
+(function (root) {
+  'use strict';
+  var HKMJ = root.HKMJ || (root.HKMJ = {});
+  var T = HKMJ.Tiles;
+
+  // ------------------------------------------------------------------ small utils
+
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function signed(n) { return (n > 0 ? '+' : '') + n; }
+  var SEAT_ZH = ['東', '南', '西', '北']; // 東南西北
+  var SEAT_EN = ['East', 'South', 'West', 'North'];
+  var ROUND_ZH = ['東風', '南風', '西風', '北風'];
+
+  function j(o) { return esc(JSON.stringify(o)); }
+
+  // ------------------------------------------------------------------ tile markup
+  // Every tile carries a human-readable title/aria-label (accessibility, UI_SPEC §6).
+
+  function tileLabel(kind) { return T.name(kind) + ' ' + T.zh(kind); }
+
+  function tileMarkup(tag, kind, opts) {
+    opts = opts || {};
+    var art = HKMJ.TileArt;
+    var back = !!opts.back;
+    var label = back ? 'Face-down tile' : tileLabel(kind);
+    var classes = ['tile'];
+    if (opts.size) classes.push('tile-' + opts.size);
+    if (opts.extraClass) classes.push(opts.extraClass);
+    if (back) classes.push('tile-back');
+    var attrs = ' class="' + classes.join(' ') + '" title="' + esc(label) + '" aria-label="' + esc(label) + '"';
+    if (opts.attrs) attrs += ' ' + opts.attrs;
+    var id = back ? art.BACK_ID : art.symbolId(kind);
+    var inner = '<svg class="tile-svg" viewBox="0 0 60 80" aria-hidden="true" focusable="false"><use href="#' + id + '"></use></svg>';
+    if (opts.marker) inner += '<span class="tile-marker ' + opts.marker + '" aria-hidden="true"></span>';
+    return '<' + tag + attrs + '>' + inner + '</' + tag + '>';
+  }
+  function tileSpan(kind, opts) { return tileMarkup('span', kind, opts); }
+  function tileButton(kind, opts) {
+    opts = opts || {};
+    opts.attrs = 'type="button" tabindex="0" ' + (opts.attrs || '');
+    return tileMarkup('button', kind, opts);
+  }
+  /** The booklet's red-triangle winning-tile marker (UI_SPEC §2/§5). */
+  function winMarker(kind, opts) { opts = opts || {}; opts.marker = 'win-triangle'; return tileSpan(kind, opts); }
+
+  function tileRow(kinds, opts) {
+    opts = opts || {};
+    return '<span class="tile-row">' + kinds.map(function (k) { return tileSpan(k, opts); }).join('') + '</span>';
+  }
+
+  // ------------------------------------------------------------------ meld / flower / river fragments
+
+  function meldMarkup(meld, opts) {
+    opts = opts || {};
+    var size = opts.size || 'meld';
+    var tiles = meld.tiles;
+    var body;
+    if (meld.type === 'kong' && meld.concealed) {
+      body = [tileSpan(tiles[0], { size: size, back: true }), tileSpan(tiles[1], { size: size }), tileSpan(tiles[2], { size: size }), tileSpan(tiles[3], { size: size, back: true })].join('');
+    } else {
+      body = tiles.map(function (t) { return tileSpan(t, { size: size }); }).join('');
+    }
+    var cls = 'meld meld-' + meld.type + (meld.added ? ' meld-added' : '');
+    return '<span class="' + cls + '">' + body + '</span>';
+  }
+  function meldsMarkup(melds, opts) {
+    if (!melds || !melds.length) return '';
+    return '<span class="melds">' + melds.map(function (m) { return meldMarkup(m, opts); }).join('') + '</span>';
+  }
+  function flowersMarkup(flowers) {
+    if (!flowers || !flowers.length) return '';
+    return '<span class="flowers">' + flowers.map(function (k) { return tileSpan(k, { size: 'flower' }); }).join('') + '</span>';
+  }
+  function riverMarkup(discards, opts) {
+    opts = opts || {};
+    var latestIdx = opts.highlightLast ? discards.length - 1 : -1;
+    var pulsing = opts.pulseLast;
+    var out = '<div class="river">';
+    discards.forEach(function (t, i) {
+      var extra = i === latestIdx ? ' river-latest' + (pulsing ? ' river-pulse' : '') : '';
+      out += tileSpan(t, { size: 'river', extraClass: extra.trim() });
+    });
+    out += '</div>';
+    return out;
+  }
+
+  // ------------------------------------------------------------------ name plate
+
+  function namePlate(p, view) {
+    var thinking = p._thinking ? '<span class="thinking" aria-hidden="true"><span></span><span></span><span></span></span>' : '';
+    var dealer = p.isDealer ? '<span class="badge-dealer" title="Dealer">莊</span>' : '';
+    var seatCircle = '<span class="seat-wind-circle" title="Seat wind: ' + esc(SEAT_EN[p.seatWind]) + '">' + SEAT_ZH[p.seatWind] + '</span>';
+    var lastAct = p.lastAction ? '<span class="last-action">' + describeLastAction(p.lastAction) + '</span>' : '';
+    return '<div class="name-plate' + (p.index === view.turn ? ' is-turn' : '') + '">' +
+      seatCircle + '<span class="player-name">' + esc(p.index === 0 ? (p.name || 'You') : p.name) + '</span>' + dealer +
+      '<span class="score">' + p.score + '</span>' + thinking + lastAct + '</div>';
+  }
+  function describeLastAction(a) {
+    var map = { chow: '上 Chow', pong: '碰 Pong', kong: '槓 Kong', concealedKong: '暗槓', addKong: '加槓', win: '食糠', selfWin: '自摸', flowerWin: '花糠' };
+    return map[a] || '';
+  }
+
+  // ------------------------------------------------------------------ centre plate
+
+  function centrePlate(view) {
+    var dice = (view.dice || []).map(function (d) { return '<span class="die">' + d + '</span>'; }).join('');
+    var repeat = view.dealerRepeat > 0 ? '<div class="repeat-count">連莊 x' + view.dealerRepeat + '</div>' : '';
+    return '<div class="centre-plate">' +
+      '<div class="plate-round">' + ROUND_ZH[view.round] + ' ' + SEAT_EN[view.round] + ' Round</div>' +
+      '<div class="plate-hand">Hand ' + view.handNo + '</div>' +
+      '<div class="plate-wall">Wall ' + view.wallCount + '</div>' +
+      '<div class="plate-dice">' + dice + '</div>' +
+      repeat +
+      '<span class="plate-wind plate-wind-e">' + SEAT_ZH[0] + '</span><span class="plate-wind plate-wind-s">' + SEAT_ZH[1] + '</span>' +
+      '<span class="plate-wind plate-wind-w">' + SEAT_ZH[2] + '</span><span class="plate-wind plate-wind-n">' + SEAT_ZH[3] + '</span>' +
+      '</div>';
+  }
+
+  // ------------------------------------------------------------------ action bar (data-action="act" data-type=... [data-tile=] [data-tiles=])
+
+  var ACTION_LABEL = {
+    win: ['食糠', 'Win'], selfWin: ['自摸', 'Self-Pick'], flowerWin: ['花糠', 'Flower Win'],
+    kong: ['槓', 'Kong'], concealedKong: ['槓', 'Kong'], addKong: ['槓', 'Kong'],
+    pong: ['碰', 'Pong'], chow: ['上', 'Chow'], pass: ['過', 'Pass']
+  };
+
+  function actButton(action, opts) {
+    opts = opts || {};
+    var label = ACTION_LABEL[action.type] || [action.type, action.type];
+    var extra = opts.extraClass ? ' ' + opts.extraClass : '';
+    var fan = (action.fan !== undefined) ? ' <span class="fan-badge">' + action.fan + ' Fan</span>' : '';
+    var data = 'data-action="act" data-type="' + esc(action.type) + '"';
+    if (action.tile !== undefined) data += ' data-tile="' + action.tile + '"';
+    if (action.tiles) data += ' data-tiles="' + j(action.tiles) + '"';
+    var hint = opts.hinted ? ' hint-suggested' : '';
+    var cls = 'btn btn-action btn-' + action.type + extra + hint;
+    var title = action.type === 'chow' && action.tiles ? ' title="' + esc(action.tiles.map(tileLabel).join(' ')) + '"' : '';
+    return '<button type="button" class="' + cls + '" ' + data + title + '>' + label[0] + ' <span class="en">' + label[1] + '</span>' + fan + '</button>';
+  }
+
+  /** Groups actions for the bar: single button per type, except chow/kong with >1 option become a picker trigger. */
+  function actionBar(view, ui) {
+    var actions = view.actions || [];
+    if (!actions.length) return '';
+    var hinted = ui.hintSuggestion && ui.hintSuggestion.action;
+    function isHinted(a) { return hinted && hinted.type === a.type && hinted.tile === a.tile && (!a.tiles || JSON.stringify(a.tiles) === JSON.stringify(hinted.tiles)); }
+    var byType = {};
+    actions.forEach(function (a) { (byType[a.type] = byType[a.type] || []).push(a); });
+    var out = [];
+    ['selfWin', 'win', 'flowerWin'].forEach(function (t) { if (byType[t]) out.push(actButton(byType[t][0], { hinted: isHinted(byType[t][0]) })); });
+    ['kong', 'concealedKong', 'addKong'].forEach(function (t) {
+      if (!byType[t]) return;
+      if (byType[t].length === 1) out.push(actButton(byType[t][0], { hinted: isHinted(byType[t][0]) }));
+      else out.push('<button type="button" class="btn btn-action btn-kong" data-action="open-picker" data-picker="kong">槓 <span class="en">Kong</span> …</button>');
+    });
+    if (byType.pong) out.push(actButton(byType.pong[0], { hinted: isHinted(byType.pong[0]) }));
+    if (byType.chow) {
+      if (byType.chow.length === 1) out.push(actButton(byType.chow[0], { hinted: isHinted(byType.chow[0]) }));
+      else out.push('<button type="button" class="btn btn-action btn-chow" data-action="open-picker" data-picker="chow">上 <span class="en">Chow</span> …</button>');
+    }
+    if (view.actions.some(function (a) { return a.type === 'discard'; })) {
+      out.push('<button type="button" class="btn btn-discard" data-action="discard-selected">打 <span class="en">Discard</span></button>');
+    }
+    if (byType.pass) out.push(actButton(byType.pass[0]));
+    return '<div class="action-bar">' + out.join('') + '</div>';
+  }
+
+  function pickerOverlay(ui) {
+    if (!ui.picker) return '';
+    var opts = ui.picker.options || [];
+    var title = ui.picker.kind === 'chow' ? 'Choose a Chow 上' : 'Choose a Kong 槓';
+    var rows = opts.map(function (a, i) {
+      var tiles = a.tiles || [a.tile];
+      return '<button type="button" class="picker-option" data-action="pick-option" data-index="' + i + '">' + tiles.map(function (t) { return tileSpan(t, { size: 'picker' }); }).join('') + '</button>';
+    }).join('');
+    return '<div class="picker-overlay"><div class="picker-box"><div class="picker-title">' + title + '</div><div class="picker-rows">' + rows + '</div>' +
+      '<button type="button" class="btn btn-small" data-action="close-picker">Cancel</button></div></div>';
+  }
+
+  // ------------------------------------------------------------------ hint panel + toast + callouts
+
+  function hintPanel(ui) {
+    var info = ui.hintInfo;
+    if (!info) return '';
+    if (!info.waits || !info.waits.length) return '<div class="hint-panel hint-panel-empty">Not ready yet.</div>';
+    var rows = info.waits.slice().sort(function (a, b) { return a.tile - b.tile; }).map(function (w) {
+      var cls = w.valid ? '' : ' wait-invalid';
+      var note = w.valid ? (w.fan + ' Fan') : (w.fan + ' Fan — below minimum');
+      return '<div class="wait-row' + cls + '">' + tileSpan(w.tile, { size: 'wait' }) + '<span class="wait-left">' + w.left + ' left</span><span class="wait-fan">' + note + '</span></div>';
+    }).join('');
+    return '<div class="hint-panel"><div class="hint-title">聽 Ready — waiting on</div>' + rows + '</div>';
+  }
+
+  function toastMarkup(view, ui) {
+    var pieces = [];
+    if (view.blockedWin) pieces.push('Winning shape, but only ' + view.blockedWin.fan + ' Fan — this table needs ' + view.blockedWin.minFan + '.');
+    if (ui.toast) pieces.push(ui.toast.text);
+    if (!pieces.length) return '';
+    return '<div class="toast">' + pieces.map(function (t) { return '<div class="toast-line">' + esc(t) + '</div>'; }).join('') + '</div>';
+  }
+
+  var SEAT_CLASS = ['seat-bottom', 'seat-right', 'seat-top', 'seat-left'];
+  function calloutsMarkup(callouts) {
+    if (!callouts || !callouts.length) return '';
+    return callouts.map(function (c) {
+      return '<div class="callout ' + SEAT_CLASS[c.player] + '" data-callout-id="' + c.id + '">' + esc(c.text) + '</div>';
+    }).join('');
+  }
+
+  function claimBanner(view) {
+    if ((view.phase !== 'claim' && view.phase !== 'robKong') || !view.claimTile) return '';
+    var fromYou = view.claimTile.from === 0;
+    var fromName = fromYou ? 'You' : view.players[view.claimTile.from].name;
+    var label = view.phase === 'robKong'
+      ? (fromName + (fromYou ? ' add' : ' adds') + ' a Kong — robbable')
+      : (fromName + (fromYou ? ' discard' : ' discards') + ':');
+    return '<div class="claim-banner">' +
+      '<div class="claim-banner-label">' + esc(label) + '</div>' + tileSpan(view.claimTile.tile, { size: 'claim' }) +
+      '</div>';
+  }
+
+  // ------------------------------------------------------------------ seats
+
+  function seatBottom(view, ui, riverOpts) {
+    var me = view.players[0];
+    var hand = me.hand || [];
+    var drawn = me.drawn;
+    var rest = hand.slice();
+    if (drawn != null) { var di = rest.indexOf(drawn); if (di >= 0) rest.splice(di, 1); }
+    var display = rest.concat(drawn != null ? [drawn] : []);
+    var canAct = (view.actions || []).some(function (a) { return a.type === 'discard'; });
+    var hintedDiscard = (ui.hintSuggestion && ui.hintSuggestion.action && ui.hintSuggestion.action.type === 'discard') ? ui.hintSuggestion.action.tile : null;
+    var tiles = display.map(function (k, i) {
+      var classes = [];
+      if (drawn != null && i === display.length - 1) classes.push('tile-drawn');
+      if (ui.selectedIndex === i) classes.push('tile-selected');
+      if (hintedDiscard === k) classes.push('hint-suggested');
+      var attrs = 'data-action="tile-click" data-index="' + i + '" data-tile="' + k + '"';
+      return tileButton(k, { size: 'hand', extraClass: classes.join(' '), attrs: attrs });
+    }).join('');
+    var handClass = 'hand-tiles' + (canAct ? ' interactive' : '');
+    return '<div class="seat seat-bottom you">' +
+      '<div class="seat-meta">' + meldsMarkup(me.melds, { size: 'meld-you' }) + flowersMarkup(me.flowers) + '</div>' +
+      '<div class="' + handClass + '" data-role="hand">' + tiles + '</div>' +
+      riverMarkup(me.discards, riverOpts) +
+      '</div>';
+  }
+
+  function seatOpponent(player, view, ui, positionClass, riverOpts) {
+    var backs = '';
+    for (var i = 0; i < player.handCount; i++) backs += tileSpan(0, { size: 'opphand', back: true });
+    player._thinking = !!(ui.aiThinking && ui.aiThinking[player.index]);
+    return '<div class="seat ' + positionClass + '">' +
+      namePlate(player, view) +
+      '<div class="seat-meta">' + meldsMarkup(player.melds, { size: 'meld-opp' }) + flowersMarkup(player.flowers) + '</div>' +
+      '<div class="opp-hand">' + backs + '</div>' +
+      riverMarkup(player.discards, riverOpts) +
+      '</div>';
+  }
+
+  // ------------------------------------------------------------------ sidebar
+
+  function rankOf(players, index) {
+    var sorted = players.slice().sort(function (a, b) { return b.score - a.score; });
+    for (var i = 0; i < sorted.length; i++) if (sorted[i].index === index) return i + 1;
+    return index + 1;
+  }
+  function scoreboard(view) {
+    var rows = view.players.map(function (p) {
+      return '<div class="score-row' + (p.index === 0 ? ' is-you' : '') + '">' +
+        '<span class="sb-rank">#' + rankOf(view.players, p.index) + '</span>' +
+        '<span class="seat-wind-circle small">' + SEAT_ZH[p.seatWind] + '</span>' +
+        '<span class="sb-name">' + esc(p.index === 0 ? (p.name || 'You') : p.name) + '</span>' +
+        (p.isDealer ? '<span class="badge-dealer small" title="Dealer">莊</span>' : '') +
+        '<span class="sb-score">' + p.score + '</span></div>';
+    }).join('');
+    return '<div class="scoreboard">' + rows + '</div>';
+  }
+  function sidebarButtons(view) {
+    return '<div class="sidebar-buttons">' +
+      '<button type="button" class="btn" data-action="open-rules">牌例 <span class="en">Rules</span></button>' +
+      '<button type="button" class="btn" data-action="open-settings">設定 <span class="en">Settings</span></button>' +
+      '<button type="button" class="btn" data-action="request-new-game">新局 <span class="en">New Game</span></button>' +
+      '<button type="button" class="btn btn-hint" data-action="hint-button">提示 <span class="en">Hint</span></button>' +
+      '<button type="button" class="btn btn-icon" data-action="toggle-sound" title="Toggle sound">' + (view.settings && view.settings.sound === false ? '🔇' : '🔊') + '</button>' +
+      '</div>';
+  }
+  function logPanel(log) {
+    var lines = (log || []).map(function (line) {
+      var cls = /wins?\b/i.test(line) ? 'log-win' : (/pongs?|kongs?|chows?/i.test(line) ? 'log-claim' : '');
+      return '<div class="log-line' + (cls ? ' ' + cls : '') + '">' + esc(line) + '</div>';
+    }).join('');
+    return '<div class="log-panel" data-role="log">' + lines + '</div>';
+  }
+
+  // ------------------------------------------------------------------ table screen
+
+  function renderTable(view, ui) {
+    ui = ui || {};
+    var lastFrom = view.lastDiscard ? view.lastDiscard.from : -1;
+    var youCanClaim = view.phase === 'claim' && (view.actions || []).some(function (a) { return a.type !== 'pass'; });
+    function riverOptsFor(idx) { return { highlightLast: idx === lastFrom, pulseLast: idx === lastFrom && youCanClaim }; }
+
+    var seats = seatOpponent(view.players[2], view, ui, 'seat-top', riverOptsFor(2)) +
+      seatOpponent(view.players[1], view, ui, 'seat-right', riverOptsFor(1)) +
+      seatOpponent(view.players[3], view, ui, 'seat-left', riverOptsFor(3)) +
+      seatBottom(view, ui, riverOptsFor(0));
+
+    var felt = '<div class="felt">' + centrePlate(view) + claimBanner(view) + seats + actionBar(view, ui) + '</div>';
+    var sidebar = '<div class="sidebar">' + scoreboard(view) + sidebarButtons(view) + hintPanel(ui) + logPanel(view.log) + '</div>';
+    var overlays = pickerOverlay(ui) + toastMarkup(view, ui) + calloutsMarkup(ui.callouts);
+    return '<div class="table-screen"><div class="rail"><div class="canvas">' + felt + '</div></div>' + sidebar + overlays + '</div>';
+  }
+
+  // ------------------------------------------------------------------ start screen
+
+  function renderStart(ctx) {
+    ctx = ctx || {};
+    return '<div class="screen start-screen"><div class="start-card">' +
+      '<h1 class="cjk-title">香港麻雀</h1>' +
+      '<h2 class="en-title">Hong Kong Mahjong</h2>' +
+      '<p class="subtitle">Scored by the HK Mahjong Scoring Sheet v1.0</p>' +
+      '<div class="start-buttons">' +
+      '<button type="button" class="btn btn-brass" data-action="request-new-game">New Game 新局</button>' +
+      (ctx.saveExists ? '<button type="button" class="btn" data-action="continue-game">Continue 繼續</button>' : '') +
+      '<button type="button" class="btn" data-action="open-rules">Rules 牌例</button>' +
+      '<button type="button" class="btn" data-action="open-settings">Settings 設定</button>' +
+      '</div></div></div>';
+  }
+
+  // ------------------------------------------------------------------ settings modal (data-field="a.b" on inputs)
+
+  function settingsRow(label, input) { return '<label class="settings-row"><span class="settings-label">' + label + '</span>' + input + '</label>'; }
+  function textInput(field, value) { return '<input type="text" data-field="' + field + '" value="' + esc(value) + '" maxlength="16"/>'; }
+  function selectInput(field, value, options) {
+    return '<select data-field="' + field + '">' + options.map(function (o) {
+      return '<option value="' + esc(o[0]) + '"' + (String(o[0]) === String(value) ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+    }).join('') + '</select>';
+  }
+  function checkboxInput(field, checked) { return '<input type="checkbox" data-field="' + field + '"' + (checked ? ' checked' : '') + '/>'; }
+  function numberSelect(field, value, min, max) { var opts = []; for (var i = min; i <= max; i++) opts.push([i, String(i)]); return selectInput(field, value, opts); }
+
+  var OPTIONAL_LABELS = {
+    kong: 'Kong 槓', sevenPairs: 'Seven Pairs 七對子', luxurySevenPairs: 'Luxury Seven Pairs 豪華七對',
+    knitted: 'Knitted Tiles 組合龍', lesserHonours: 'Lesser Honours 全不靠', greaterHonours: 'Greater Honours 七星不靠'
+  };
+  var OPTIONAL_KEYS = ['kong', 'sevenPairs', 'luxurySevenPairs', 'knitted', 'lesserHonours', 'greaterHonours'];
+
+  function renderSettingsModal(modal) {
+    var d = modal.draft;
+    var rows = settingsRow('Your name 姓名', textInput('name', d.name)) +
+      settingsRow('Minimum Fan 最低番', numberSelect('minFan', d.minFan, 0, 5)) +
+      settingsRow('Payment 賠法', selectInput('payment', d.payment, [['full', 'Discarder pays all 全鋪'], ['shared', 'Shared (older tables)']])) +
+      settingsRow('Unit 单位', selectInput('unit', d.unit, [['points', 'Points'], ['chips', 'Chips (Fan count)']])) +
+      settingsRow('Game length 局數', selectInput('rounds', d.rounds, [[4, 'Full game (4 rounds)'], [1, 'East round only']])) +
+      settingsRow('Computer level 電腦難度', selectInput('aiLevel', d.aiLevel, [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']])) +
+      settingsRow('Speed 速度', selectInput('speed', d.speed, [['relaxed', 'Relaxed'], ['normal', 'Normal'], ['fast', 'Fast']])) +
+      settingsRow('Hints 提示', checkboxInput('hints', d.hints)) +
+      settingsRow('Sound 音效', checkboxInput('sound', d.sound));
+    var toggles = OPTIONAL_KEYS.map(function (k) { return settingsRow(OPTIONAL_LABELS[k] + ' †', checkboxInput('optional.' + k, d.optional[k])); }).join('');
+    var restartNotice = modal.confirmingRestart
+      ? '<div class="settings-confirm"><p>Table-rule changes only take effect in a new game.</p>' +
+        '<button type="button" class="btn" data-action="settings-keep-playing">Keep Playing</button>' +
+        '<button type="button" class="btn btn-brass" data-action="settings-restart-now">Restart Now</button></div>'
+      : '';
+    var primaryLabel = modal.forNewGame ? 'Start Game 開局' : 'Save 儲存';
+    return '<div class="modal-overlay"><div class="modal settings-modal" data-role="settings-modal">' +
+      '<div class="modal-head"><h2 class="modal-title">Settings 設定</h2>' + (modal.forNewGame ? '' : '<button type="button" class="btn btn-icon" data-action="close-modal">✕</button>') + '</div>' +
+      '<p class="settings-note">Agree these before the first deal — the booklet’s † hands vary by table.</p>' +
+      '<div class="settings-rows">' + rows + '</div>' +
+      '<div class="settings-rows settings-optional"><div class="settings-subhead">Table rules †</div>' + toggles + '</div>' +
+      restartNotice +
+      '<div class="modal-actions">' + (modal.forNewGame ? '' : '<button type="button" class="btn" data-action="settings-cancel">Cancel</button>') +
+      '<button type="button" class="btn btn-brass" data-action="settings-save">' + primaryLabel + '</button>' +
+      '</div></div></div>';
+  }
+
+  // ------------------------------------------------------------------ rules modal
+
+  function rulesTabButton(tab, activeId) {
+    return '<button type="button" class="rules-tab' + (tab.id === activeId ? ' active' : '') + '" data-action="rules-tab" data-tab="' + tab.id + '">' + esc(tab.label) + ' <span class="zh">' + esc(tab.zh || '') + '</span></button>';
+  }
+  function rulesCard(c, settings) {
+    var optNote = '';
+    if (c.optional) {
+      var on = settings && settings.optional && settings.optional[c.id];
+      optNote = '<span class="opt-state ' + (on ? 'opt-on' : 'opt-off') + '">' + (on ? 'Enabled' : 'Disabled') + '</span>';
+    }
+    var example = '';
+    if (c.example) {
+      try {
+        var kinds = T.parse(c.example);
+        var winK = c.winTile ? T.parse(c.winTile)[0] : null;
+        example = '<div class="rules-example">' + kinds.map(function (k) { return (winK != null && k === winK) ? winMarker(k, { size: 'rules' }) : tileSpan(k, { size: 'rules' }); }).join('') + '</div>';
+      } catch (e) { example = ''; }
+    }
+    return '<div class="rules-card' + (c.optional ? ' rules-card-optional' : '') + '">' +
+      '<div class="rules-card-head"><span class="fan-pill">' + esc(c.fanText) + '</span>' +
+      '<span class="rules-card-name">' + esc(c.name) + ' <span class="zh">' + esc(c.zh) + '</span></span>' + optNote + '</div>' +
+      '<div class="rules-card-desc">' + esc(c.desc) + '</div>' + example +
+      (c.note ? '<div class="rules-card-note">' + esc(c.note) + '</div>' : '') +
+      '</div>';
+  }
+  function rulesTabBody(tab, settings) {
+    if (tab.sections) return tab.sections.map(function (s) { return '<div class="rules-section"><h3>' + esc(s.heading) + ' <span class="zh">' + esc(s.zh) + '</span></h3><p>' + esc(s.body) + '</p></div>'; }).join('');
+    if (tab.cards) return '<div class="rules-cards rules-color-' + (tab.color || 'default') + '">' + tab.cards.map(function (c) { return rulesCard(c, settings); }).join('') + '</div>';
+    if (tab.points) {
+      var rows = '';
+      for (var f = 0; f < tab.points.length; f++) rows += '<div class="pay-row"><span>' + f + (f === tab.points.length - 1 ? '+' : '') + '</span><span>' + tab.points[f] + '</span></div>';
+      return '<div class="payment-table">' + rows + '</div><div class="rules-notes">' + tab.notes.map(function (n) { return '<p>' + esc(n) + '</p>'; }).join('') + '</div>';
+    }
+    if (tab.chains) {
+      return '<p class="rules-intro">' + esc(tab.intro) + '</p>' + tab.chains.map(function (c) {
+        return '<div class="fan-chain"><div class="fan-chain-title">' + esc(c.title) + ' <span class="zh">' + esc(c.zh) + '</span></div>' +
+          '<div class="fan-chain-steps">' + c.steps.map(function (s) { return '<span class="fan-chain-step">' + esc(s) + '</span>'; }).join('') + '</div></div>';
+      }).join('');
+    }
+    return '';
+  }
+  function renderRulesModal(modal) {
+    modal = modal || {};
+    var tabs = HKMJ.RulesContent.tabs;
+    var active = tabs.filter(function (t) { return t.id === modal.tab; })[0] || tabs[0];
+    var tabButtons = tabs.map(function (t) { return rulesTabButton(t, active.id); }).join('');
+    return '<div class="modal-overlay"><div class="modal rules-modal" data-role="rules-modal">' +
+      '<div class="modal-head"><h2 class="modal-title">Rules 牌例</h2><button type="button" class="btn btn-icon" data-action="close-modal">✕</button></div>' +
+      '<div class="rules-tabs">' + tabButtons + '</div>' +
+      '<div class="rules-body">' + rulesTabBody(active, modal.settings) + '</div>' +
+      '</div></div>';
+  }
+
+  // ------------------------------------------------------------------ hand result modal
+
+  function groupMarkup(g, winTile) {
+    var n = g.tiles.length;
+    var parts = g.tiles.map(function (t, i) {
+      var isWinSlot = g.hasWinTile && (g.kind === 'chow' ? t === winTile : i === n - 1);
+      var back = (g.kind === 'kong' && g.concealed && g.fromMeld && (i === 0 || i === n - 1));
+      var opts = { size: 'result', back: back };
+      return isWinSlot ? winMarker(t, opts) : tileSpan(t, opts);
+    });
+    return '<span class="result-group result-group-' + g.kind + (g.fromMeld ? ' from-meld' : '') + '">' + parts.join('') + '</span>';
+  }
+  function winningHandDisplay(view) {
+    var r = view.result;
+    if (r.type !== 'win' || !r.evaluation || !r.evaluation.groups || !r.evaluation.groups.length) return '';
+    return '<div class="winning-hand">' + r.evaluation.groups.map(function (g) { return groupMarkup(g, r.winTile); }).join('') + '</div>';
+  }
+  function resultTitle(view) {
+    var r = view.result;
+    if (r.type === 'draw') return { en: 'Draw', zh: '流局', sub: 'The wall is exhausted.' };
+    var winnerName = r.winner === 0 ? 'You' : view.players[r.winner].name;
+    var verb = r.winner === 0 ? 'win' : 'wins';
+    if (r.source === 'flowers') return { en: winnerName + ' ' + verb + ' with a Flower hand', zh: '花糠', sub: '' };
+    if (r.source === 'self') return { en: winnerName + ' ' + verb + ' by Self-Pick', zh: '自摸', sub: '' };
+    if (r.source === 'robKong') return { en: winnerName + ' ' + verb + ' by Robbing the Kong', zh: '摆槓', sub: '' };
+    var payerName = r.payer === 0 ? 'your' : (view.players[r.payer].name + '’s');
+    return { en: winnerName + ' ' + verb + ' on ' + payerName + ' discard', zh: '食糠', sub: '' };
+  }
+  function fanTable(ev) {
+    var rows = ev.items.map(function (it) {
+      return '<div class="fan-row"><span class="fan-name">' + esc(it.name) + ' <span class="zh">' + esc(it.zh) + '</span></span>' +
+        '<span class="fan-detail">' + esc(it.detail || '') + '</span><span class="fan-value">' + it.fan + '</span></div>';
+    }).join('');
+    var replaced = (ev.replaced || []).map(function (it) {
+      return '<div class="fan-row fan-row-replaced"><span class="fan-name">' + esc(it.name) + ' <span class="zh">' + esc(it.zh) + '</span></span>' +
+        '<span class="fan-detail">' + esc(it.reason || '') + '</span><span class="fan-value">' + it.fan + '</span></div>';
+    }).join('');
+    var totalText = ev.limit ? (ev.fan + ' Fan — limit (raw ' + ev.rawFan + ')') : (ev.fan + ' Fan');
+    return '<div class="fan-table">' + rows + replaced + '<div class="fan-total">' + totalText + '</div></div>';
+  }
+  function paymentLines(view) {
+    var r = view.result;
+    var lines = r.payments.map(function (delta, i) {
+      if (!delta) return '';
+      var name = i === 0 ? 'You' : view.players[i].name;
+      if (delta < 0) return '<div class="payment-line">' + esc(name) + (i === 0 ? ' pay ' : ' pays ') + Math.abs(delta) + '</div>';
+      return '<div class="payment-line payment-line-win">' + esc(name) + (i === 0 ? ' receive ' : ' receives ') + delta + '</div>';
+    }).join('');
+    return '<div class="payment-lines">' + lines + '</div>';
+  }
+  function scoresAfterRow(view) {
+    var r = view.result;
+    return '<div class="scores-after">' + view.players.map(function (p, i) {
+      var delta = r.payments ? r.payments[i] : 0;
+      return '<div class="score-after-row"><span>' + esc(i === 0 ? 'You' : p.name) + '</span><span>' + r.scoresAfter[i] + '</span>' +
+        '<span class="delta">' + (delta ? signed(delta) : '') + '</span></div>';
+    }).join('') + '</div>';
+  }
+  function nextDealLine(view) {
+    var r = view.result;
+    if (r.gameOver) return '<div class="next-deal">Game over — final standings next.</div>';
+    var dealerName = r.nextDealer === 0 ? 'You' : view.players[r.nextDealer].name;
+    if (r.dealerStays) return '<div class="next-deal">' + (r.dealer === 0 ? 'You keep' : (view.players[r.dealer].name + ' keeps')) + ' the deal.</div>';
+    var roundChange = r.nextRound !== r.round ? (' — ' + ROUND_ZH[r.nextRound] + ' ' + SEAT_EN[r.nextRound] + ' Round begins') : '';
+    return '<div class="next-deal">The deal passes to ' + esc(dealerName) + '.' + roundChange + '</div>';
+  }
+  function revealedHandsRow(view) {
+    var r = view.result;
+    if (!r.hands) return '';
+    return '<div class="revealed-hands">' + r.hands.map(function (h, i) {
+      var name = i === 0 ? 'You' : view.players[i].name;
+      return '<div class="revealed-hand-row"><span class="revealed-name">' + esc(name) + '</span>' +
+        tileRow(h.hand, { size: 'reveal' }) + meldsMarkup(h.melds, { size: 'reveal' }) + flowersMarkup(h.flowers) + '</div>';
+    }).join('') + '</div>';
+  }
+  function renderHandResult(view) {
+    var r = view.result;
+    var title = resultTitle(view);
+    var body = r.type === 'draw'
+      ? ('<div class="result-sub">' + esc(title.sub) + '</div>' + revealedHandsRow(view))
+      : (winningHandDisplay(view) + fanTable(r.evaluation) + paymentLines(view) + scoresAfterRow(view) + revealedHandsRow(view));
+    return '<div class="modal-overlay"><div class="modal result-modal">' +
+      '<h2 class="modal-title">' + esc(title.en) + ' <span class="zh">' + esc(title.zh) + '</span></h2>' +
+      body + nextDealLine(view) +
+      '<div class="modal-actions"><button type="button" class="btn btn-brass" data-action="next-hand">Next hand 下一局</button></div>' +
+      '</div></div>';
+  }
+
+  // ------------------------------------------------------------------ game over modal
+
+  function renderGameOver(view) {
+    var standings = view.standings || [];
+    var rows = standings.map(function (s) {
+      return '<div class="standing-row' + (s.index === 0 ? ' is-you' : '') + '"><span class="standing-rank">#' + s.rank + '</span>' +
+        '<span class="standing-name">' + esc(s.index === 0 ? 'You' : s.name) + '</span><span class="standing-score">' + s.score + '</span></div>';
+    }).join('');
+    return '<div class="modal-overlay"><div class="modal gameover-modal">' +
+      '<h2 class="modal-title">Game Over 結束</h2>' +
+      '<div class="standings">' + rows + '</div>' +
+      '<div class="modal-actions"><button type="button" class="btn btn-brass" data-action="request-new-game">New Game 新局</button></div>' +
+      '</div></div>';
+  }
+
+  // ------------------------------------------------------------------ generic confirm modal
+
+  function renderConfirmModal(modal) {
+    return '<div class="modal-overlay"><div class="modal confirm-modal">' +
+      '<p>' + esc(modal.message) + '</p>' +
+      '<div class="modal-actions"><button type="button" class="btn" data-action="' + esc(modal.cancelAction) + '">Cancel</button>' +
+      '<button type="button" class="btn btn-brass" data-action="' + esc(modal.confirmAction) + '">Confirm</button></div>' +
+      '</div></div>';
+  }
+
+  // ------------------------------------------------------------------ root dispatcher
+
+  function renderRoot(state) {
+    state = state || {};
+    var base = (state.screen === 'game' && state.view) ? renderTable(state.view, state.ui || {}) : renderStart({ saveExists: state.saveExists });
+    var overlay = '';
+    if (state.modal) {
+      if (state.modal.type === 'settings') overlay = renderSettingsModal(state.modal);
+      else if (state.modal.type === 'rules') overlay = renderRulesModal(state.modal);
+      else if (state.modal.type === 'confirm') overlay = renderConfirmModal(state.modal);
+    } else if (state.screen === 'game' && state.view) {
+      if (state.view.phase === 'handEnd') overlay = renderHandResult(state.view);
+      else if (state.view.phase === 'gameEnd') overlay = renderGameOver(state.view);
+    }
+    return base + overlay;
+  }
+
+  HKMJ.UI = HKMJ.UI || {};
+  HKMJ.UI.renderTable = renderTable;
+  HKMJ.UI.renderStart = renderStart;
+  HKMJ.UI.renderSettingsModal = renderSettingsModal;
+  HKMJ.UI.renderRulesModal = renderRulesModal;
+  HKMJ.UI.renderHandResult = renderHandResult;
+  HKMJ.UI.renderGameOver = renderGameOver;
+  HKMJ.UI.renderConfirmModal = renderConfirmModal;
+  HKMJ.UI.renderRoot = renderRoot;
+  HKMJ.UI._internal = { esc: esc, tileSpan: tileSpan, tileButton: tileButton, tileLabel: tileLabel, meldMarkup: meldMarkup, winMarker: winMarker, rankOf: rankOf };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = HKMJ.UI;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+;
+/* ---- src/ui/app.js ---- */
+/* HK Mahjong — src/ui/app.js
+ * Controller: DOM mounting, event delegation, game loop / AI pacing, modals, settings, save/resume, sound.
+ * Plain DOM APIs only; defensive try/catch around storage/audio/AI (UI_SPEC.md §6). Re-renders by setting
+ * innerHTML from the pure HKMJ.UI.render* functions and relies on event delegation with data-action attributes.
+ */
+(function (root) {
+  'use strict';
+  var HKMJ = root.HKMJ || (root.HKMJ = {});
+
+  var SETTINGS_KEY = 'hkmj.settings.v1', SAVE_KEY = 'hkmj.save.v1';
+  var SPEED_TURN = { relaxed: 1100, normal: 650, fast: 250 };
+  var SPEED_CLAIM = { relaxed: 700, normal: 450, fast: 150 };
+
+  var G = null;
+  var rootEl = null;
+  var timers = [];
+  var calloutSeq = 0;
+  var audioCtx = null;
+  var state = {
+    screen: 'start', view: null, settings: null, saveExists: false, modal: null,
+    ui: freshUi()
+  };
+
+  function freshUi() { return { selectedIndex: null, hintInfo: null, hintSuggestion: null, aiThinking: {}, toast: null, callouts: [], picker: null, _graceNext: false }; }
+
+  // ------------------------------------------------------------------ persistence (never let storage break the app)
+
+  function defaultUiSettings() {
+    var s = JSON.parse(JSON.stringify(HKMJ.DEFAULT_SETTINGS || { minFan: 3, payment: 'full', unit: 'points', rounds: 4, aiLevel: 'normal', startingScore: 0, optional: {} }));
+    s.name = 'You'; s.speed = 'normal'; s.hints = true; s.sound = true;
+    return s;
+  }
+  function loadSettings() {
+    try {
+      var raw = root.localStorage && root.localStorage.getItem(SETTINGS_KEY);
+      var base = defaultUiSettings();
+      if (!raw) return base;
+      var parsed = JSON.parse(raw);
+      var merged = {};
+      Object.keys(base).forEach(function (k) { merged[k] = (parsed[k] !== undefined) ? parsed[k] : base[k]; });
+      merged.optional = {};
+      Object.keys(base.optional).forEach(function (k) { merged.optional[k] = (parsed.optional && parsed.optional[k] !== undefined) ? parsed.optional[k] : base.optional[k]; });
+      return merged;
+    } catch (e) { console.error('HKMJ: loadSettings failed', e); return defaultUiSettings(); }
+  }
+  function persistSettings() { try { root.localStorage && root.localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings)); } catch (e) { console.error('HKMJ: persistSettings failed', e); } }
+  function autosave() { try { if (G && root.localStorage) root.localStorage.setItem(SAVE_KEY, G.serialize()); } catch (e) { console.error('HKMJ: autosave failed', e); } }
+  function checkSaveExists() { try { return !!(root.localStorage && root.localStorage.getItem(SAVE_KEY)); } catch (e) { return false; } }
+  function clearSave() { try { root.localStorage && root.localStorage.removeItem(SAVE_KEY); } catch (e) { console.error('HKMJ: clearSave failed', e); } }
+  function cloneDraft(settings) { return JSON.parse(JSON.stringify(settings)); }
+
+  // ------------------------------------------------------------------ sound (tiny synthesised WebAudio, never files)
+
+  function getAudioCtx() {
+    if (!state.settings || !state.settings.sound) return null;
+    try {
+      if (!audioCtx) { var Ctor = root.AudioContext || root.webkitAudioContext; if (!Ctor) return null; audioCtx = new Ctor(); }
+      return audioCtx;
+    } catch (e) { console.error('HKMJ: audio init failed', e); return null; }
+  }
+  function blip(ctx, t, freq, dur, type) {
+    var osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = type; osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.15, t + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(t); osc.stop(t + dur + 0.02);
+  }
+  function playSound(kind) {
+    try {
+      var ctx = getAudioCtx(); if (!ctx) return;
+      var now = ctx.currentTime;
+      if (kind === 'clack') blip(ctx, now, 210, 0.045, 'square');
+      else if (kind === 'chime') { blip(ctx, now, 660, 0.13, 'sine'); blip(ctx, now + 0.05, 880, 0.14, 'sine'); }
+      else if (kind === 'chord') [523.25, 659.25, 784.0].forEach(function (f, i) { blip(ctx, now + i * 0.03, f, 0.35, 'triangle'); });
+    } catch (e) { console.error('HKMJ: playSound failed', e); }
+  }
+
+  // ------------------------------------------------------------------ callouts / toast
+
+  function addCallout(player, text) {
+    var id = 'c' + (calloutSeq++);
+    state.ui.callouts.push({ player: player, text: text, id: id });
+    render();
+    timers.push(setTimeout(function () {
+      state.ui.callouts = state.ui.callouts.filter(function (c) { return c.id !== id; });
+      render();
+    }, 1100));
+  }
+  function showToast(text) {
+    var id = 't' + (calloutSeq++);
+    state.ui.toast = { text: text, id: id };
+    render();
+    timers.push(setTimeout(function () { if (state.ui.toast && state.ui.toast.id === id) { state.ui.toast = null; render(); } }, 2600));
+  }
+
+  // ------------------------------------------------------------------ engine events -> sound + callouts (never hidden-tile data)
+
+  function calloutTextForClaim(claim) { return { chow: '上 Chow!', pong: '碰 Pong!', kong: '槓 Kong!' }[claim] || claim; }
+  function calloutTextForWin(result) { return result.source === 'self' ? '自摸!' : (result.source === 'flowers' ? '花糠!' : '食糠!'); }
+
+  function handleEngineEvent(evt) {
+    if (evt.type === 'discard') playSound('clack');
+    else if (evt.type === 'claim') { playSound('chime'); addCallout(evt.player, calloutTextForClaim(evt.claim)); }
+    else if (evt.type === 'concealedKong' || evt.type === 'addKong') { playSound('chime'); addCallout(evt.player, '槓 Kong!'); }
+    else if (evt.type === 'robKong') { playSound('chime'); addCallout(evt.player, '搭槓!'); }
+    else if (evt.type === 'win') { playSound('chord'); addCallout(evt.player, calloutTextForWin(evt.result)); }
+  }
+  function attachEngineListeners() {
+    if (!G) return;
+    G.on(function (evt) { try { handleEngineEvent(evt); } catch (e) { console.error('HKMJ: event handler failed', e); } });
+  }
+
+  // ------------------------------------------------------------------ AI pacing / game loop
+
+  function clearTimers() { timers.forEach(function (id) { clearTimeout(id); }); timers = []; }
+  function delayForTurn() {
+    var base = SPEED_TURN[state.settings.speed] || SPEED_TURN.normal;
+    if (state.ui._graceNext) { state.ui._graceNext = false; return Math.max(500, base); }
+    return base;
+  }
+  function delayForClaim() {
+    var base = SPEED_CLAIM[state.settings.speed] || SPEED_CLAIM.normal;
+    if (state.ui._graceNext) { state.ui._graceNext = false; return Math.max(500, base); }
+    return base;
+  }
+  function scheduleAI(fn, delay, thinkingPlayers) {
+    (thinkingPlayers || []).forEach(function (p) { state.ui.aiThinking[p] = true; });
+    render();
+    timers.push(setTimeout(function () {
+      (thinkingPlayers || []).forEach(function (p) { state.ui.aiThinking[p] = false; });
+      fn();
+    }, delay));
+  }
+  function safeFallback(actions) {
+    actions = actions || [];
+    return actions.filter(function (a) { return a.type === 'pass'; })[0] ||
+      actions.filter(function (a) { return a.type === 'discard'; })[0] ||
+      actions[0] || { type: 'pass' };
+  }
+  function aiActFor(p) {
+    var view, actions, action, res;
+    try { view = G.getView(p); actions = G.getActions(p); }
+    catch (e) { console.error('HKMJ: getView/getActions failed', e); return; }
+    if (!actions.length) return;
+    try { action = HKMJ.AI.decide(view, actions, { level: state.settings.aiLevel }); }
+    catch (e) { console.error('HKMJ: AI.decide failed', e); action = safeFallback(actions); }
+    try { res = G.act(p, action); } catch (e) { res = { ok: false, error: String(e) }; }
+    if (!res.ok) {
+      console.error('HKMJ: AI act failed', res.error, action);
+      try { G.act(p, safeFallback(actions)); } catch (e2) { console.error('HKMJ: AI fallback act failed', e2); }
+    }
+  }
+  function doAiTurn(p) { if (!G) return; aiActFor(p); advance(); }
+  function doAiClaims(list) { if (!G) return; list.forEach(aiActFor); advance(); }
+
+  function advance() {
+    if (!G) { render(); return; }
+    try { state.view = G.getView(0); } catch (e) { console.error('HKMJ: getView failed', e); }
+    refreshHints();
+    render();
+    autosave();
+    var pend;
+    try { pend = G.getPending(); } catch (e) { console.error('HKMJ: getPending failed', e); return; }
+    if (pend.type === 'handEnd' || pend.type === 'gameEnd') return;
+    if (pend.type === 'turn') {
+      if (pend.player !== 0) scheduleAI(function () { doAiTurn(pend.player); }, delayForTurn(), [pend.player]);
+      return;
+    }
+    if (pend.type === 'claim' || pend.type === 'robKong') {
+      var aiList = (pend.waiting || []).filter(function (p) { return p !== 0; });
+      if (aiList.length) scheduleAI(function () { doAiClaims(aiList); }, delayForClaim(), aiList);
+      return;
+    }
+  }
+
+  function refreshHints() {
+    state.ui.hintInfo = null;
+    if (!G || !state.settings.hints) return;
+    try { state.ui.hintInfo = G.getHints(0); } catch (e) { console.error('HKMJ: getHints failed', e); }
+  }
+
+  function humanAct(action) {
+    if (!G) return;
+    var res;
+    try { res = G.act(0, action); } catch (e) { res = { ok: false, error: String(e) }; }
+    if (!res.ok) { console.error('HKMJ: human act failed', res.error, action); showToast('That is not available right now.'); return; }
+    state.ui.selectedIndex = null; state.ui.picker = null; state.ui.hintSuggestion = null;
+    state.ui._graceNext = true;
+    advance();
+  }
+
+  // ------------------------------------------------------------------ new game / settings diff
+
+  function gameSettingsDiffer(draft, active) {
+    if (!active) return false;
+    var keys = ['minFan', 'payment', 'unit', 'rounds', 'aiLevel'];
+    for (var i = 0; i < keys.length; i++) if (draft[keys[i]] !== active[keys[i]]) return true;
+    var optKeys = Object.keys((HKMJ.DEFAULT_SETTINGS && HKMJ.DEFAULT_SETTINGS.optional) || {});
+    for (var j = 0; j < optKeys.length; j++) if (!!draft.optional[optKeys[j]] !== !!active.optional[optKeys[j]]) return true;
+    return false;
+  }
+  function startNewGame(draft) {
+    state.settings = draft;
+    persistSettings();
+    var engineSettings = {
+      minFan: draft.minFan, payment: draft.payment, unit: draft.unit, rounds: draft.rounds,
+      aiLevel: draft.aiLevel, startingScore: (HKMJ.DEFAULT_SETTINGS && HKMJ.DEFAULT_SETTINGS.startingScore) || 0,
+      optional: draft.optional
+    };
+    clearTimers();
+    try {
+      G = new HKMJ.Game({ settings: engineSettings, names: [draft.name || 'You', 'Mei', 'Wing', 'Keung'], humans: [0] });
+      attachEngineListeners();
+      G.start();
+    } catch (e) {
+      console.error('HKMJ: failed to start game', e);
+      showToast('Could not start a new game. Check the console.');
+      return;
+    }
+    state.screen = 'game'; state.modal = null; state.ui = freshUi();
+    advance();
+  }
+  function continueGame() {
+    try {
+      var raw = root.localStorage && root.localStorage.getItem(SAVE_KEY);
+      if (!raw) { showToast('No saved game found.'); return; }
+      G = HKMJ.Game.deserialize(raw);
+      attachEngineListeners();
+    } catch (e) {
+      console.error('HKMJ: continueGame failed', e);
+      showToast('That save could not be loaded.');
+      clearSave();
+      return;
+    }
+    state.screen = 'game'; state.modal = null; state.ui = freshUi();
+    advance();
+  }
+
+  // ------------------------------------------------------------------ hand display order (mirrors render.js seatBottom)
+
+  function handDisplayOrder(view) {
+    var me = view.players[0];
+    var hand = (me.hand || []).slice();
+    if (me.drawn != null) { var i = hand.indexOf(me.drawn); if (i >= 0) hand.splice(i, 1); hand.push(me.drawn); }
+    return hand;
+  }
+  function moveSelection(delta, len) {
+    if (!len) return;
+    var cur = state.ui.selectedIndex;
+    var next = (cur == null) ? (delta > 0 ? 0 : len - 1) : Math.max(0, Math.min(len - 1, cur + delta));
+    state.ui.selectedIndex = next;
+    render();
+  }
+
+  // ------------------------------------------------------------------ render
+
+  function render() {
+    if (!rootEl) return;
+    try { rootEl.innerHTML = HKMJ.UI.renderRoot(state); }
+    catch (e) {
+      console.error('HKMJ: render failed', e);
+      try { rootEl.innerHTML = '<div class="fatal-error">Something went wrong rendering the table — check the console.</div>'; } catch (e2) { /* nothing more we can do */ }
+    }
+    applyCanvasScale();
+  }
+
+  /** The table is a fixed 1440x900 design canvas (UI_SPEC.md §3), scaled uniformly to fit the window and
+   * centred, letterboxed by the rail colour (CSS handles the letterbox background; this just sizes the box). */
+  function applyCanvasScale() {
+    try {
+      var wrap = rootEl.querySelector('.canvas-outer');
+      var canvas = rootEl.querySelector('.canvas-scale');
+      if (!wrap || !canvas) return;
+      var scale = Math.min(wrap.clientWidth / 1440, wrap.clientHeight / 900);
+      if (!isFinite(scale) || scale <= 0) scale = 1;
+      scale = Math.max(0.35, scale);
+      canvas.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
+    } catch (e) { console.error('HKMJ: canvas scale failed', e); }
+  }
+  var resizeTimer = null;
+  function onResize() {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(applyCanvasScale, 80);
+  }
+
+  // ------------------------------------------------------------------ event delegation
+
+  function closestWithAction(el) {
+    while (el && el !== rootEl) {
+      if (el.getAttribute && el.getAttribute('data-action')) return el;
+      el = el.parentNode;
+    }
+    return null;
+  }
+
+  function dispatch(action, el) {
+    switch (action) {
+      case 'request-new-game': {
+        var activeGame = G && state.view && state.view.phase !== 'gameEnd';
+        state.modal = activeGame
+          ? { type: 'confirm', message: 'Start a new game? Your current game will be lost.', confirmAction: 'open-new-game-settings', cancelAction: 'close-modal' }
+          : { type: 'settings', draft: cloneDraft(state.settings), forNewGame: true };
+        render();
+        return;
+      }
+      case 'open-new-game-settings':
+        state.modal = { type: 'settings', draft: cloneDraft(state.settings), forNewGame: true };
+        render();
+        return;
+      case 'continue-game': continueGame(); return;
+      case 'open-rules':
+        state.modal = { type: 'rules', tab: 'basics', settings: state.settings };
+        render();
+        return;
+      case 'rules-tab':
+        if (state.modal && state.modal.type === 'rules') { state.modal.tab = el.getAttribute('data-tab'); render(); }
+        return;
+      case 'open-settings':
+        state.modal = { type: 'settings', draft: cloneDraft(state.settings), forNewGame: false };
+        render();
+        return;
+      case 'close-modal': case 'settings-cancel': state.modal = null; render(); return;
+      case 'settings-save': {
+        var draft = state.modal.draft;
+        if (state.modal.forNewGame) { startNewGame(draft); return; }
+        var active = state.view ? state.view.settings : null;
+        if (active && gameSettingsDiffer(draft, active)) { state.modal.confirmingRestart = true; render(); return; }
+        state.settings = draft; persistSettings(); state.modal = null; render();
+        return;
+      }
+      case 'settings-restart-now': startNewGame(state.modal.draft); return;
+      case 'settings-keep-playing': state.settings = state.modal.draft; persistSettings(); state.modal = null; render(); return;
+      case 'tile-click': {
+        var idx = +el.getAttribute('data-index'), kind = +el.getAttribute('data-tile');
+        if (state.ui.selectedIndex === idx) humanAct({ type: 'discard', tile: kind });
+        else { state.ui.selectedIndex = idx; render(); }
+        return;
+      }
+      case 'discard-selected': {
+        if (state.ui.selectedIndex == null || !state.view) { showToast('Select a tile first.'); return; }
+        var hand = handDisplayOrder(state.view), k = hand[state.ui.selectedIndex];
+        if (k != null) humanAct({ type: 'discard', tile: k });
+        return;
+      }
+      case 'act': {
+        var type = el.getAttribute('data-type');
+        var act = { type: type };
+        if (el.hasAttribute('data-tile')) act.tile = +el.getAttribute('data-tile');
+        if (el.hasAttribute('data-tiles')) { try { act.tiles = JSON.parse(el.getAttribute('data-tiles')); } catch (e) { act.tiles = null; } }
+        humanAct(act);
+        return;
+      }
+      case 'open-picker': {
+        var pk = el.getAttribute('data-picker');
+        var wanted = pk === 'chow' ? ['chow'] : ['kong', 'concealedKong', 'addKong'];
+        var opts = ((state.view && state.view.actions) || []).filter(function (a) { return wanted.indexOf(a.type) >= 0; });
+        state.ui.picker = { kind: pk, options: opts };
+        render();
+        return;
+      }
+      case 'pick-option': {
+        var pi = +el.getAttribute('data-index');
+        var opt = state.ui.picker && state.ui.picker.options[pi];
+        state.ui.picker = null;
+        if (opt) humanAct(opt); else render();
+        return;
+      }
+      case 'close-picker': state.ui.picker = null; render(); return;
+      case 'hint-button': {
+        if (!state.view) return;
+        try { state.ui.hintSuggestion = HKMJ.AI.suggest(state.view, state.view.actions || []); }
+        catch (e) { console.error('HKMJ: AI.suggest failed', e); state.ui.hintSuggestion = null; }
+        render();
+        return;
+      }
+      case 'toggle-sound': state.settings.sound = !state.settings.sound; persistSettings(); render(); return;
+      case 'next-hand': {
+        if (!G) return;
+        var r; try { r = G.nextHand(); } catch (e) { r = { ok: false, error: String(e) }; }
+        if (!r.ok) { console.error('HKMJ: nextHand failed', r.error); return; }
+        state.ui.selectedIndex = null; state.ui.hintSuggestion = null; state.ui.picker = null;
+        advance();
+        return;
+      }
+      default:
+        if (state.modal && action === state.modal.confirmAction) { dispatch(action === 'open-new-game-settings' ? action : 'close-modal', el); }
+    }
+  }
+
+  function onClick(e) {
+    var el = closestWithAction(e.target);
+    if (!el) return;
+    dispatch(el.getAttribute('data-action'), el);
+  }
+  function onDblClick(e) {
+    var el = e.target, guard = 0;
+    while (el && el !== rootEl && guard++ < 8) {
+      if (el.getAttribute && el.getAttribute('data-action') === 'tile-click') {
+        humanAct({ type: 'discard', tile: +el.getAttribute('data-tile') });
+        return;
+      }
+      el = el.parentNode;
+    }
+  }
+  function onFormChange(e) {
+    var el = e.target;
+    var field = el.getAttribute && el.getAttribute('data-field');
+    if (!field || !state.modal || state.modal.type !== 'settings') return;
+    var value = (el.type === 'checkbox') ? el.checked : el.value;
+    if (field === 'minFan' || field === 'rounds') value = +value;
+    if (field.indexOf('optional.') === 0) state.modal.draft.optional[field.slice(9)] = value;
+    else state.modal.draft[field] = value;
+    if (field !== 'name') render(); // avoid yanking focus out of the text field on every keystroke-triggered change
+  }
+  function onKeyDown(e) {
+    if (state.screen !== 'game' || !state.view || state.modal) return;
+    var view = state.view, actions = view.actions || [];
+    if (!actions.length) return;
+    var key = e.key;
+    if (view.phase === 'turn' && view.turn === 0) {
+      if (key === 'ArrowLeft' || key === 'ArrowRight') { moveSelection(key === 'ArrowLeft' ? -1 : 1, handDisplayOrder(view).length); e.preventDefault(); return; }
+      if ((key === 'Enter' || key === ' ') && state.ui.selectedIndex != null) {
+        var hand = handDisplayOrder(view), kind = hand[state.ui.selectedIndex];
+        if (kind != null && actions.some(function (a) { return a.type === 'discard' && a.tile === kind; })) { humanAct({ type: 'discard', tile: kind }); e.preventDefault(); }
+        return;
+      }
+    }
+    var typeMap = { w: ['win', 'selfWin', 'flowerWin'], p: ['pong'], k: ['kong', 'concealedKong', 'addKong'], c: ['chow'] };
+    var lower = key.toLowerCase();
+    if (typeMap[lower]) {
+      var opts = actions.filter(function (a) { return typeMap[lower].indexOf(a.type) >= 0; });
+      if (opts.length === 1) { humanAct(opts[0]); e.preventDefault(); }
+      else if (opts.length > 1) { state.ui.picker = { kind: (lower === 'c' ? 'chow' : 'kong'), options: opts }; render(); e.preventDefault(); }
+      return;
+    }
+    if ((key === ' ' || key === 'Escape') && (view.phase === 'claim' || view.phase === 'robKong')) {
+      var pass = actions.filter(function (a) { return a.type === 'pass'; })[0];
+      if (pass) { humanAct(pass); e.preventDefault(); }
+    }
+  }
+
+  // ------------------------------------------------------------------ init
+
+  function init() {
+    rootEl = root.document.getElementById('app');
+    if (!rootEl) { console.error('HKMJ: #app root element not found'); return; }
+    try {
+      var spriteHost = root.document.getElementById('tile-sprite');
+      if (spriteHost && HKMJ.TileArt) spriteHost.innerHTML = HKMJ.TileArt.spriteSVG();
+    } catch (e) { console.error('HKMJ: failed to install tile sprite', e); }
+    state.settings = loadSettings();
+    state.saveExists = checkSaveExists();
+    rootEl.addEventListener('click', onClick);
+    rootEl.addEventListener('dblclick', onDblClick);
+    rootEl.addEventListener('change', onFormChange);
+    root.document.addEventListener('keydown', onKeyDown);
+    if (root.addEventListener) root.addEventListener('resize', onResize);
+    render();
+  }
+
+  HKMJ.App = { init: init };
+  if (typeof root.document !== 'undefined') {
+    if (root.document.readyState === 'loading') root.document.addEventListener('DOMContentLoaded', init);
+    else init();
+  }
+  if (typeof module !== 'undefined' && module.exports) module.exports = HKMJ.App;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+</body>
+</html>

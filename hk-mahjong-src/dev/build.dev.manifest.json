@@ -1,0 +1,14 @@
+{
+  "template": "src/ui/index.html",
+  "css": ["src/ui/styles.css"],
+  "js": [
+    "src/core/tiles.js",
+    "src/core/rng.js",
+    "dev/mock-engine.js",
+    "src/ui/tile-art.js",
+    "src/ui/rules-content.js",
+    "src/ui/render.js",
+    "src/ui/app.js"
+  ],
+  "output": "../HK-Mahjong.dev.html"
+}

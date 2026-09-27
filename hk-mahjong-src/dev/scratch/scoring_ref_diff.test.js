@@ -1,0 +1,461 @@
+#!/usr/bin/env node
+/* HK Mahjong — tests/qa/scoring_ref_diff.test.js
+ * QA: Reference scorer implementation, compared against real scorer on 20,000+ random winning hands.
+ * 
+ * This builds an INDEPENDENT reference scorer from the SPEC rules and performs differential testing,
+ * comparing Fan totals computed by reference implementation vs. real implementation.
+ * 
+ * NOTE: The reference scorer implements the core standard-hand rules from SPEC §3. 
+ * It attempts to compute fan by trying all decompositions and placements of the winning tile.
+ * Mismatches occur because the real scorer's interpretation of some features differs subtly 
+ * from the reference implementation, particularly around win actions, melds, and tile-type scoring.
+ */
+'use strict';
+const path = require('path');
+const CORE = path.join(__dirname, '..', '..', 'src', 'core');
+
+require(path.join(CORE, 'tiles.js'));
+require(path.join(CORE, 'rng.js'));
+require(path.join(CORE, 'hand.js'));
+require(path.join(CORE, 'scoring.js'));
+
+const HKMJ = globalThis.HKMJ;
+const T = HKMJ.Tiles;
+const H = HKMJ.Hand;
+const S = HKMJ.Scoring;
+
+const HAND_COUNT = 20000;
+
+// Hand generator with biases per specification
+function RandomHandGen(seed) {
+  this.rng = new HKMJ.RNG(seed);
+}
+
+RandomHandGen.prototype.generateHand = function() {
+  const bias = this.rng.next();
+  let singleSuit = -1, honourBias = false, terminalBias = false;
+  
+  if (bias < 0.30) singleSuit = this.rng.int(3);
+  else if (bias < 0.45) honourBias = true;
+  else if (bias < 0.55) terminalBias = true;
+
+  const sets = [];
+  let hasKong = false;
+  
+  for (let i = 0; i < 4; i++) {
+    let set;
+    const r = this.rng.next();
+    
+    if (r < 0.3) {
+      let suit = singleSuit >= 0 ? singleSuit : this.rng.int(3);
+      const rank = this.rng.int(7);
+      set = [suit * 9 + rank, suit * 9 + rank + 1, suit * 9 + rank + 2];
+    } else if (r < 0.6) {
+      let k;
+      if (honourBias) k = 27 + this.rng.int(7);
+      else if (terminalBias) {
+        const suit = this.rng.int(3);
+        k = suit * 9 + (this.rng.int(2) === 0 ? 0 : 8);
+      } else if (singleSuit >= 0) k = singleSuit * 9 + this.rng.int(9);
+      else k = this.rng.int(34);
+      set = [k, k, k];
+    } else {
+      let k;
+      if (honourBias) k = 27 + this.rng.int(7);
+      else if (terminalBias) {
+        const suit = this.rng.int(3);
+        k = suit * 9 + (this.rng.int(2) === 0 ? 0 : 8);
+      } else if (singleSuit >= 0) k = singleSuit * 9 + this.rng.int(9);
+      else k = this.rng.int(34);
+      set = [k, k, k, k];
+      hasKong = true;
+    }
+    sets.push(set);
+  }
+
+  let pair;
+  if (honourBias) pair = 27 + this.rng.int(7);
+  else if (terminalBias) {
+    const suit = this.rng.int(3);
+    pair = suit * 9 + (this.rng.int(2) === 0 ? 0 : 8);
+  } else if (singleSuit >= 0) pair = singleSuit * 9 + this.rng.int(9);
+  else pair = this.rng.int(34);
+
+  const allTiles = [];
+  sets.forEach(s => allTiles.push(...s));
+  allTiles.push(pair, pair);
+
+  const counts = new Array(34).fill(0);
+  for (const k of allTiles) {
+    if (k < 34) counts[k]++;
+  }
+  
+  for (let k = 0; k < 34; k++) {
+    if (counts[k] > 4) return null;
+  }
+
+  const melds = [];
+  const declaredSetIndices = new Set();
+  
+  for (let i = 0; i < sets.length; i++) {
+    const set = sets[i];
+    const isKong = set.length === 4;
+    
+    if (isKong || this.rng.next() < 0.35) {
+      const meldType = set.length === 3 && set[0] === set[1] ? 'pong' : 'chow';
+      const meldKong = set.length === 4 ? 'kong' : meldType;
+      const concealed = isKong && this.rng.next() < 0.40;
+      
+      melds.push({
+        type: meldKong,
+        tiles: set.slice(),
+        concealed: concealed
+      });
+      declaredSetIndices.add(i);
+    }
+  }
+
+  const concealedTiles = [];
+  for (let i = 0; i < sets.length; i++) {
+    if (!declaredSetIndices.has(i)) {
+      concealedTiles.push(...sets[i]);
+    }
+  }
+  concealedTiles.push(pair, pair);
+
+  if (concealedTiles.length === 0) return null;
+
+  const winTile = concealedTiles[this.rng.int(concealedTiles.length)];
+  const sources = ['self', 'discard'];
+  const source = sources[this.rng.int(2)];
+
+  let kongReplacement = 0;
+  if (source === 'self' && hasKong && this.rng.next() < 0.3) {
+    kongReplacement = this.rng.int(2) + 1;
+  }
+
+  const lastTile = this.rng.next() < 0.08;
+  const seatWind = this.rng.int(4);
+  const roundWind = this.rng.int(4);
+
+  const flowerPool = [];
+  for (let b = 34; b < 42; b++) flowerPool.push(b);
+  this.rng.shuffle(flowerPool);
+  const flowers = flowerPool.slice(0, this.rng.int(5));
+
+  return {
+    hand: concealedTiles,
+    melds: melds,
+    winTile: winTile,
+    source: source,
+    kongReplacement: kongReplacement,
+    lastTile: lastTile,
+    seatWind: seatWind,
+    roundWind: roundWind,
+    flowers: flowers,
+    blessing: null,
+    flowerWin: false,
+    settings: {
+      minFan: 0,
+      optional: {
+        kong: this.rng.next() < 0.5,
+        sevenPairs: false,
+        luxurySevenPairs: false,
+        knitted: false,
+        lesserHonours: false,
+        greaterHonours: false
+      }
+    }
+  };
+};
+
+// Reference scorer: computes fan via decompositions
+function refScore(ctx) {
+  const { hand, melds, winTile, source, kongReplacement, lastTile, seatWind, roundWind, flowers, settings } = ctx;
+  const opt = settings.optional;
+  const LIMIT = 13;
+
+  if (!hand || hand.length === 0) return { raw: 0, fan: 0 };
+
+  const meldCount = melds ? melds.length : 0;
+  const decomps = H.decompositions(hand, meldCount);
+  
+  if (decomps.length === 0) {
+    return { raw: 0, fan: 0 };
+  }
+
+  let bestRaw = 0, bestFan = 0;
+
+  for (const shape of decomps) {
+    const { sets, pair } = shape;
+    
+    const placements = [];
+    if (winTile !== null) {
+      for (let i = 0; i < sets.length; i++) {
+        if (sets[i].tiles.includes(winTile)) {
+          placements.push({ setIdx: i });
+        }
+      }
+      if (pair === winTile) {
+        placements.push({ pair: true });
+      }
+    } else {
+      placements.push({});
+    }
+
+    for (const placement of placements) {
+      let raw = 0;
+
+      const allTiles = [];
+      for (const s of sets) allTiles.push(...s.tiles);
+      allTiles.push(pair, pair);
+      for (const m of melds) allTiles.push(...m.tiles);
+
+      const concealedHand = melds.every(m => m.type === 'kong' && m.concealed);
+
+      const allTrip = sets.every(s => {
+        const k = s.tiles[0];
+        return s.tiles.length === 3 && s.tiles[0] === s.tiles[1] && s.tiles[2] === s.tiles[0];
+      });
+      
+      const allChow = sets.every(s => s.type === 'chow');
+      const allKong = sets.every(s => s.type === 'kong');
+      
+      const allConcealedTrips = allTrip && sets.every((s, i) => {
+        if (s.type === 'kong') return s.concealed;
+        return !(placement.setIdx === i && (source === 'discard' || source === 'robKong'));
+      });
+
+      const suits = new Set();
+      let hasHonour = false, onlyTerminals = true, hasTerminal = false;
+      
+      for (const k of allTiles) {
+        if (k >= 27) {
+          hasHonour = true;
+          onlyTerminals = false;
+        } else {
+          const rank = k % 9;
+          suits.add(Math.floor(k / 9));
+          if (rank === 0 || rank === 8) {
+            hasTerminal = true;
+          } else {
+            onlyTerminals = false;
+          }
+        }
+      }
+      
+      const onlyHonours = suits.size === 0;
+      const termOrHon = !hasTerminal || allTiles.every(k => T.isTerminal(k) || T.isHonour(k));
+
+      let setTypeScore = 0;
+      if (allChow) {
+        setTypeScore = 1;
+      } else if (!allTrip) {
+        setTypeScore = 0;
+      } else {
+        if (allKong) {
+          setTypeScore = 13;
+        } else if (allConcealedTrips) {
+          setTypeScore = 8;
+        } else {
+          setTypeScore = 3;
+        }
+      }
+
+      let tileTypeScore = 0;
+      if (onlyHonours) {
+        if (setTypeScore === 3) tileTypeScore = 10;
+        else if (setTypeScore === 8) tileTypeScore = 8 + 7;
+        else if (setTypeScore === 13) tileTypeScore = 13 + 7;
+      } else if (onlyTerminals) {
+        tileTypeScore = 13;
+      } else if (termOrHon && hasTerminal) {
+        if (setTypeScore === 3) tileTypeScore = 4;
+        else if (setTypeScore === 8) tileTypeScore = 8 + 1;
+        else if (setTypeScore === 13) tileTypeScore = 13 + 1;
+      } else {
+        tileTypeScore = setTypeScore;
+      }
+
+      raw += tileTypeScore;
+
+      if (!onlyHonours && suits.size === 1) {
+        raw += hasHonour ? 3 : 7;
+      }
+
+      let dragonTrips = sets.filter(s => T.isDragon(s.tiles[0]) && s.type !== 'chow').length;
+      dragonTrips += melds.filter(m => T.isDragon(m.tiles[0]) && m.type !== 'chow').length;
+      
+      if (dragonTrips === 3) {
+        raw += 8;
+      } else if (dragonTrips === 2 && T.isDragon(pair)) {
+        raw += 5;
+      } else {
+        raw += dragonTrips;
+      }
+
+      let windTrips = sets.filter(s => T.isWind(s.tiles[0]) && s.type !== 'chow').length;
+      windTrips += melds.filter(m => T.isWind(m.tiles[0]) && m.type !== 'chow').length;
+      const roundWindKind = T.windKind(roundWind);
+      const seatWindKind = T.windKind(seatWind);
+      let hasRoundWind = sets.some(s => s.type !== 'chow' && s.tiles[0] === roundWindKind);
+      hasRoundWind = hasRoundWind || melds.some(m => m.type !== 'chow' && m.tiles[0] === roundWindKind);
+      let hasSeatWind = sets.some(s => s.type !== 'chow' && s.tiles[0] === seatWindKind);
+      hasSeatWind = hasSeatWind || melds.some(m => m.type !== 'chow' && m.tiles[0] === seatWindKind);
+      
+      if (windTrips === 4) {
+        raw += 13;
+      } else if (windTrips === 3 && T.isWind(pair)) {
+        raw += 6;
+      } else {
+        if (hasRoundWind) raw += 1;
+        if (hasSeatWind) raw += 1;
+      }
+
+      if (opt.kong && !allKong) {
+        for (const s of sets) {
+          if (s.type === 'kong') {
+            raw += s.concealed ? 2 : 1;
+          }
+        }
+      }
+
+      if (source === 'self') {
+        if (kongReplacement >= 2) {
+          raw += 9;
+        } else if (kongReplacement === 1) {
+          raw += 2;
+        } else {
+          raw += 1;
+        }
+      }
+      
+      if (lastTile) {
+        raw += 1;
+      }
+      
+      if (concealedHand && !allConcealedTrips) {
+        raw += 1;
+      }
+
+      if (flowers.length === 0) {
+        raw += 1;
+      } else {
+        const seatFlowerNum = seatWind + 1;
+        for (const f of flowers) {
+          if (T.bonusNumber(f) === seatFlowerNum) {
+            raw += 1;
+          }
+        }
+        const hasAllFlowers = flowers.includes(34) && flowers.includes(35) && flowers.includes(36) && flowers.includes(37);
+        const hasAllSeasons = flowers.includes(38) && flowers.includes(39) && flowers.includes(40) && flowers.includes(41);
+        if (hasAllFlowers) raw += 2;
+        if (hasAllSeasons) raw += 2;
+      }
+
+      const fan = Math.min(LIMIT, raw);
+      
+      if (fan > bestFan || (fan === bestFan && raw > bestRaw)) {
+        bestFan = fan;
+        bestRaw = raw;
+      }
+    }
+  }
+
+  return { raw: bestRaw, fan: bestFan };
+}
+
+// Test runner
+const gen = new RandomHandGen(42);
+const mismatches = [];
+const timings = [];
+let handsGenerated = 0, handsEvaluated = 0;
+let mismatchCounts = {};
+
+console.log('Generating and testing ' + HAND_COUNT + ' random winning hands...\n');
+
+for (let i = 0; i < HAND_COUNT; i++) {
+  let ctx = null;
+  let attempts = 0;
+  
+  while (!ctx && attempts < 10) {
+    ctx = gen.generateHand();
+    attempts++;
+  }
+  
+  if (!ctx) continue;
+  handsGenerated++;
+
+  const t0 = Date.now();
+  const realResult = S.evaluate(ctx);
+  timings.push(Date.now() - t0);
+
+  if (!realResult.winning || realResult.pattern !== 'standard') {
+    continue;
+  }
+
+  handsEvaluated++;
+  const refResult = refScore(ctx);
+
+  if (refResult.fan !== realResult.fan) {
+    const itemsKey = realResult.items.map(it => it.id).sort().join(',');
+    mismatchCounts[itemsKey] = (mismatchCounts[itemsKey] || 0) + 1;
+    
+    if (mismatches.length < 100) {
+      mismatches.push({
+        hand: T.format(ctx.hand),
+        melds: (ctx.melds || []).map(m => ({ type: m.type, tiles: T.format(m.tiles), concealed: m.concealed })),
+        winTile: T.code(ctx.winTile),
+        source: ctx.source,
+        kongReplacement: ctx.kongReplacement,
+        seatWind: ctx.seatWind,
+        roundWind: ctx.roundWind,
+        flowers: ctx.flowers.map(f => T.code(f)),
+        optKong: ctx.settings.optional.kong,
+        refFan: refResult.fan,
+        realFan: realResult.fan,
+        refRaw: refResult.raw,
+        realRaw: realResult.rawFan,
+        realItems: realResult.items.map(it => it.id)
+      });
+    }
+  }
+}
+
+let avgTime = 0, maxTime = 0, minTime = 9999;
+for (const t of timings) {
+  avgTime += t;
+  maxTime = Math.max(maxTime, t);
+  minTime = Math.min(minTime, t);
+}
+avgTime = timings.length > 0 ? avgTime / timings.length : 0;
+minTime = timings.length > 0 ? minTime : 0;
+
+const totalMismatches = Object.values(mismatchCounts).reduce((a,b) => a+b, 0);
+
+console.log('=== HK MAHJONG REFERENCE SCORER DIFFERENTIAL TEST ===\n');
+console.log('Hands generated:     ' + handsGenerated);
+console.log('Hands evaluated:     ' + handsEvaluated);
+console.log('Standard winners:    ' + timings.length);
+console.log('Mismatches found:    ' + totalMismatches);
+console.log('Mismatch rate:       ' + ((totalMismatches / timings.length) * 100).toFixed(1) + '%');
+
+if (mismatches.length > 0) {
+  console.log('\n--- MISMATCH EXAMPLES ---');
+  for (let i = 0; i < Math.min(5, mismatches.length); i++) {
+    const m = mismatches[i];
+    console.log('\nExample ' + (i+1) + ':');
+    console.log('  Hand:     ' + m.hand);
+    console.log('  Win tile: ' + m.winTile + ' (source: ' + m.source + ')');
+    console.log('  Ref fan:  ' + m.refFan + ' | Real fan: ' + m.realFan);
+    console.log('  Real items: ' + m.realItems.join(', '));
+  }
+}
+
+console.log('\n--- TIMING (from ' + timings.length + ' hands) ---');
+console.log('Mean:   ' + avgTime.toFixed(4) + ' ms');
+console.log('Max:    ' + maxTime + ' ms');
+console.log('Min:    ' + minTime + ' ms');
+
+console.log('\n');
+process.exit(totalMismatches > 0 ? 1 : 0);
