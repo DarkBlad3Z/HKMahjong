@@ -1,7 +1,7 @@
 # Hong Kong Mahjong 香港麻雀
 
 Play Hong Kong Mahjong in your browser against three computer players. Scoring follows the
-*HK Mahjong Scoring Sheet v1.0* (expanded by V. Nguyen): every win shows its full Fan breakdown and the payments.
+*HK Mahjong Scoring Sheet v1.0* (expanded by J-Lee): every win shows its full Fan breakdown and the payments.
 
 **▶ Play:** `https://<your-username>.github.io/<repo-name>/` — or download `index.html` and open it. It runs offline, needs no install, and sends no data anywhere.
 
