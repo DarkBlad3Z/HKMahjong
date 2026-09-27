@@ -5482,36 +5482,74 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
     vowelSynth(ctx, d, t + 0.03, dur, [pitch, pitch * 0.82], uh ? [[0, 640, 1150], [0.3, 600, 1100], [1, 270, 850]] : [[0, 520, 880], [0.3, 470, 830], [1, 270, 850]], vol, 7);
     tone(ctx, d, t + dur * 0.3, pitch, dur, 'sine', vol * 0.25, pitch * 0.82);
   }
+  // Speech voices load asynchronously: the very first getVoices() call usually returns an empty list, which made
+  // the first Chow/Pong/Kong fall back to the synth. So the list is warmed up at start-up and on 'voiceschanged',
+  // speech is started even before the list arrives, and the synth fallback only plays if speech never starts.
   var speechVoice = null;
-  function say(text, pitch, rate) {
+  function pickVoice() {
     try {
-      var S = root.speechSynthesis; if (!S || !root.SpeechSynthesisUtterance) return false;
-      if (!speechVoice) speechVoice = S.getVoices().filter(function (v) { return /^en/i.test(v.lang); })[0] || null;
-      if (!S.getVoices().length) return false;
-      var u = new root.SpeechSynthesisUtterance(text);
-      u.pitch = pitch; u.rate = rate; u.volume = 1; if (speechVoice) u.voice = speechVoice;
-      S.cancel(); S.speak(u);
-      return true;
-    } catch (e) { return false; }
+      var S = root.speechSynthesis; if (!S) return;
+      var vs = S.getVoices() || [];
+      speechVoice = vs.filter(function (v) { return /^en[-_]US/i.test(v.lang) && v.localService !== false; })[0] ||
+        vs.filter(function (v) { return /^en/i.test(v.lang); })[0] || speechVoice;
+    } catch (e) { /* optional */ }
+  }
+  function warmSpeech() {
+    try {
+      var S = root.speechSynthesis; if (!S) return;
+      pickVoice();
+      if (S.addEventListener) S.addEventListener('voiceschanged', pickVoice);
+      else S.onvoiceschanged = pickVoice;
+    } catch (e) { /* optional */ }
+  }
+  var speechUnlocked = false;
+  /** Some browsers (iOS Safari) only allow speech after it has once been started from a tap: do that silently. */
+  function unlockSpeech() {
+    if (speechUnlocked) return;
+    speechUnlocked = true;
+    try {
+      var S = root.speechSynthesis; if (!S || !root.SpeechSynthesisUtterance) return;
+      var u = new root.SpeechSynthesisUtterance(' '); u.volume = 0; S.speak(u);
+    } catch (e) { /* optional */ }
+  }
+  /** Speak `text`; if speech is unavailable or does not start within 900 ms, play synth `fallback` instead. */
+  function sayOr(text, pitch, rate, fallback) {
+    var S = root.speechSynthesis;
+    if (!S || !root.SpeechSynthesisUtterance) { playSynthClaim(fallback); return; }
+    try {
+      if (!speechVoice) pickVoice();
+      var u = new root.SpeechSynthesisUtterance(text), started = false, done = false;
+      u.pitch = pitch; u.rate = rate; u.volume = 1; u.lang = 'en-US';
+      if (speechVoice) u.voice = speechVoice;
+      u.onstart = function () { started = true; };
+      u.onerror = function () { if (!started && !done) { done = true; playSynthClaim(fallback); } };
+      S.cancel();
+      if (S.paused && S.resume) S.resume();
+      S.speak(u);
+      setTimeout(function () { if (!started && !done) { done = true; try { S.cancel(); } catch (e) { /* ignore */ } playSynthClaim(fallback); } }, 900);
+    } catch (e) { playSynthClaim(fallback); }
+  }
+  function playSynthClaim(id) {
+    try { var ctx = getAudioCtx(); if (ctx && CLAIM_PLAYERS[id]) CLAIM_PLAYERS[id](ctx, sfxBus, ctx.currentTime + 0.01); } catch (e) { /* ignore */ }
   }
   /** id -> player. Voice ids fall back to a synth id when the device has no speech voice. */
   var CLAIM_PLAYERS = {
-    c1: function () { return say('Chow! Chow! Chow!', 1.1, 1.25) || 'c4'; },
-    c2: function () { return say('chow chow chow!', 1.9, 1.5) || 'c4'; },
-    c3: function (ctx, d, t) { kick(ctx, d, t, 0.6); return say('Chow!', 0.55, 0.85) || 'c4'; },
+    c1: function () { sayOr('Chow! Chow! Chow!', 1.1, 1.25, 'c4'); },
+    c2: function () { sayOr('chow chow chow!', 1.9, 1.5, 'c4'); },
+    c3: function (ctx, d, t) { kick(ctx, d, t, 0.6); sayOr('Chow!', 0.55, 0.85, 'c4'); },
     c4: function (ctx, d, t) { [0, 0.25, 0.5].forEach(function (x, i) { chowWord(ctx, d, t + x, [200, 190, 230][i], 0.35, true); }); },
     c5: function (ctx, d, t) { chowWord(ctx, d, t, 190, 0.32, true); chowWord(ctx, d, t + 0.24, 200, 0.32, true); chowWord(ctx, d, t + 0.5, 260, 0.38); tone(ctx, d, t + 0.62, 1568, 0.2, 'square', 0.06); tone(ctx, d, t + 0.7, 2093, 0.25, 'square', 0.05); },
     nom: function () { playSound('chow-nom'); },
-    p1: function () { return say('Pongggg!', 1, 0.75) || 'p3'; },
-    p2: function (ctx, d, t) { kick(ctx, d, t, 0.7); return say('PUNG!', 0.5, 0.8) || 'p4'; },
+    p1: function () { sayOr('Pongggg!', 1, 0.75, 'p3'); },
+    p2: function (ctx, d, t) { kick(ctx, d, t, 0.7); sayOr('PUNG!', 0.5, 0.8, 'p4'); },
     p3: function (ctx, d, t) { pongWord(ctx, d, t, 150, 0.4, 0.7); },
     p4: function (ctx, d, t) { kick(ctx, d, t, 0.7); noise(ctx, d, t, 0.08, 0.25, 1800); pongWord(ctx, d, t + 0.02, 120, 0.45, 0.45, true); },
     p5: function () { playSound('pong-orig'); },
-    k1: function () { return say('Konggggg!', 0.6, 0.7) || 'k3'; },
-    k2: function () { return say('Kunggg!', 0.9, 0.75) || 'k4'; },
+    k1: function () { sayOr('Konggggg!', 0.6, 0.7, 'k3'); },
+    k2: function () { sayOr('Kunggg!', 0.9, 0.75, 'k4'); },
     k3: function (ctx, d, t) { kongWord(ctx, d, t, 115, 0.42, 0.75); gong(ctx, d, t + 0.12, 110, 2.2, 0.28); },
     k4: function (ctx, d, t) { kick(ctx, d, t, 0.6); kick(ctx, d, t + 0.12, 0.5); kongWord(ctx, d, t + 0.04, 105, 0.45, 0.8, true); },
-    k5: function (ctx, d, t) { gong(ctx, d, t, 98, 2.5, 0.32); return say('KONG!', 0.5, 0.8) || 'k3'; },
+    k5: function (ctx, d, t) { gong(ctx, d, t, 98, 2.5, 0.32); sayOr('KONG!', 0.5, 0.8, 'k3'); },
     orig: function () { playSound('kong-orig'); }
   };
   var CLAIM_DEFAULT = { chow: 'c2', pong: 'p1', kong: 'k1' };
@@ -5519,8 +5557,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
     try {
       var ctx = getAudioCtx(); if (!ctx) return;
       var fn = CLAIM_PLAYERS[id]; if (!fn) return;
-      var r = fn(ctx, sfxBus, ctx.currentTime + 0.01);
-      if (typeof r === 'string' && CLAIM_PLAYERS[r]) CLAIM_PLAYERS[r](ctx, sfxBus, ctx.currentTime + 0.01);   // no speech voice: synth instead
+      fn(ctx, sfxBus, ctx.currentTime + 0.01);
     } catch (e) { console.error('HKMJ: claim sound failed', e); }
   }
   function playClaimSound(type) {
@@ -6040,6 +6077,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
   /** Browsers only allow audio after a user gesture: create/resume the context on the first click. */
   function syncMusic() { if (state.settings && state.settings.music && state.screen === 'game') startMusic(); else stopMusic(); }
   function unlockAudio() {
+    unlockSpeech();
     try {
       var ctx = (state.settings && (state.settings.sound || state.settings.music)) ? ensureAudioCtx() : null;
       if (ctx && ctx.state === 'suspended' && ctx.resume) ctx.resume();
@@ -6199,6 +6237,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
       if (spriteHost && HKMJ.TileArt) spriteHost.innerHTML = HKMJ.TileArt.spriteSVG();
     } catch (e) { console.error('HKMJ: failed to install tile sprite', e); }
     state.settings = loadSettings();
+    warmSpeech();
     state.saveExists = checkSaveExists();
     rootEl.addEventListener('click', onClick);
     if (root.PointerEvent) {
