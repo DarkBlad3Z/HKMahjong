@@ -375,6 +375,7 @@
   function isChickenHand(result) {
     try {
       if (!result || result.source === 'flowers' || !result.evaluation) return false;
+      if (typeof result.evaluation.chicken === 'boolean') return result.evaluation.chicken;
       var F = HKMJ.Scoring.FEATURES;
       return (result.evaluation.items || []).every(function (it) { return F[it.id] && F[it.id].group === 'bonus'; });
     } catch (e) { return false; }
@@ -393,7 +394,8 @@
     }
     else if (evt.type === 'blockedWin' && evt.player === 0) {
       var tileName = (evt.tile != null && HKMJ.Tiles) ? (HKMJ.Tiles.name(evt.tile) + ' ' + HKMJ.Tiles.zh(evt.tile) + ' completes your hand, but') : 'Winning shape, but';
-      showToast(tileName + ' it is only ' + evt.fan + ' Fan — this table needs ' + evt.minFan + '.');
+      showToast(evt.chicken ? tileName + ' it is a chicken hand 雞糊 — chicken hands can’t win at this table (Settings → Table rules).'
+        : tileName + ' it is only ' + evt.fan + ' Fan — this table needs ' + evt.minFan + '.');
     }
   }
   function attachEngineListeners() {
@@ -510,7 +512,8 @@
     var keys = ['minFan', 'payment', 'unit', 'rounds', 'aiLevel'];
     for (var i = 0; i < keys.length; i++) if (draft[keys[i]] !== active[keys[i]]) return true;
     var optKeys = Object.keys((HKMJ.DEFAULT_SETTINGS && HKMJ.DEFAULT_SETTINGS.optional) || {});
-    for (var j = 0; j < optKeys.length; j++) if (!!draft.optional[optKeys[j]] !== !!active.optional[optKeys[j]]) return true;
+    function norm(v) { return typeof v === 'string' ? v : !!v; }
+    for (var j = 0; j < optKeys.length; j++) if (norm(draft.optional[optKeys[j]]) !== norm(active.optional[optKeys[j]])) return true;
     return false;
   }
   function startNewGame(draft) {

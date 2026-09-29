@@ -19,7 +19,7 @@
 
   var DEFAULT_SETTINGS = {
     minFan: 3, payment: 'full', unit: 'points', rounds: 4, aiLevel: 'normal', startingScore: 0,
-    optional: { kong: false, sevenPairs: true, luxurySevenPairs: true, knitted: true, lesserHonours: true, greaterHonours: true }
+    optional: { kong: false, sevenPairs: true, luxurySevenPairs: true, knitted: true, lesserHonours: true, greaterHonours: true, chicken: 'minimum' }
   };
   var DEFAULT_NAMES = ['You', 'Julie', 'Bel', 'Pat'];
   var MAX_HANDS = 300;              // SPEC §2.2 safety cap
@@ -77,6 +77,7 @@
     out.optional = {};
     var uo = (u.optional && typeof u.optional === 'object') ? u.optional : {};
     Object.keys(d.optional).forEach(function (k) {
+      if (k === 'chicken') { out.optional[k] = HKMJ.Hand && HKMJ.Hand.chickenRule ? HKMJ.Hand.chickenRule(uo[k]) : d.optional[k]; return; }
       out.optional[k] = (typeof uo[k] === 'boolean') ? uo[k] : d.optional[k];
     });
     return out;
@@ -546,7 +547,7 @@
       var ev = this._evalSelf(p);
       if (ev) {
         if (ev.valid) acts.push({ type: 'selfWin', fan: ev.fan, evaluation: ev });
-        else blocked = { fan: ev.fan, minFan: minFan };
+        else blocked = withChicken({ fan: ev.fan, minFan: minFan }, ev);
       }
       if (P.flowerOffer && P.flowers.length >= 7) {
         var fe = this._evalFlowers(p);
@@ -574,7 +575,7 @@
     var ev = this._evaluate(this._ctx(q, P.hand.concat([t]), t, 'discard', this._discardFlags(q, from)));
     if (ev) {
       if (ev.valid) acts.push({ type: 'win', fan: ev.fan, evaluation: ev });
-      else blocked = { fan: ev.fan, minFan: this.c.settings.minFan, tile: t };
+      else blocked = withChicken({ fan: ev.fan, minFan: this.c.settings.minFan, tile: t }, ev);
     }
     if (!finalDiscard) {
       var n = countOf(P.hand, t);
@@ -599,7 +600,7 @@
     var ev = this._evaluate(this._ctx(q, P.hand.concat([k]), k, 'robKong', {}));
     if (!ev) return { acts: [], blocked: null };
     if (ev.valid) return { acts: [{ type: 'win', fan: ev.fan, evaluation: ev }, { type: 'pass' }], blocked: null };
-    return { acts: [], blocked: { fan: ev.fan, minFan: this.c.settings.minFan, tile: k } };
+    return { acts: [], blocked: withChicken({ fan: ev.fan, minFan: this.c.settings.minFan, tile: k }, ev) };
   };
 
   // ------------------------------------------------------------------------------------------------ validation
@@ -653,6 +654,12 @@
     return { match: same[0] };
   };
 
+  /** Adds chicken: true only when the chicken-hand table rule (not the minimum) is what blocks the win. */
+  function withChicken(o, src) { if (src && (src.chickenBarred || src.chicken)) o.chicken = true; return o; }
+  function blockedText(b) {
+    return b.chicken ? 'Winning shape, but it is a chicken hand 雞糊 (no Fan of its own) — this table does not allow chicken hands'
+      : 'Winning shape, but only ' + b.fan + ' Fan — this table needs ' + b.minFan;
+  }
   Game.prototype._unavailable = function (p, type) {
     var s = this.s, info;
     var TURN = ['discard', 'selfWin', 'flowerWin', 'concealedKong', 'addKong'];
@@ -661,7 +668,7 @@
       if (s.afterClaim) return 'After a Chow or Pong you must discard (no win or Kong in the same turn)';
       if (type === 'selfWin') {
         info = this._turnInfo();
-        if (info.blocked) return 'Winning shape, but only ' + info.blocked.fan + ' Fan — this table needs ' + info.blocked.minFan;
+        if (info.blocked) return blockedText(info.blocked);
         return 'Self-Pick is not possible: the hand is not complete';
       }
       if (type === 'flowerWin') return 'Seven/Eight Flowers can be declared only right after collecting the 7th or 8th bonus tile';
@@ -673,7 +680,7 @@
     if (TURN.indexOf(type) >= 0) return 'Cannot "' + type + '" now: waiting for answers to a ' + (c.kind === 'robKong' ? 'Kong' : 'discard');
     if (c.kind === 'robKong') return 'Only a win (Robbing the Kong) or pass is possible on an added Kong';
     if (type === 'win') {
-      if (c.blocked && c.blocked[p]) return 'Winning shape, but only ' + c.blocked[p].fan + ' Fan — this table needs ' + c.blocked[p].minFan;
+      if (c.blocked && c.blocked[p]) return blockedText(c.blocked[p]);
       return 'This tile does not complete ' + this._poss(p) + ' hand';
     }
     if (s.wall.length === 0) return 'The final discard can only be claimed for a win';
@@ -718,7 +725,7 @@
     s.phase = 'turn'; s.seq++;
     if (!afterClaim && this.c.humans.indexOf(p) >= 0) {
       var b = this._turnInfo().blocked;
-      if (b) this._emit({ type: 'blockedWin', player: p, tile: this._winTileSelf(p), fan: b.fan, minFan: b.minFan });
+      if (b) this._emit(withChicken({ type: 'blockedWin', player: p, tile: this._winTileSelf(p), fan: b.fan, minFan: b.minFan }, b));
     }
   };
 
@@ -834,8 +841,8 @@
       var o = kind === 'discard' ? this._claimOptionsFor(q, t, from) : this._robOptionsFor(q, t);
       if (o.acts.length) { options[q] = o.acts; any = true; }
       if (o.blocked) {
-        blocked[q] = { fan: o.blocked.fan, minFan: o.blocked.minFan };
-        if (this.c.humans.indexOf(q) >= 0) this._emit({ type: 'blockedWin', player: q, tile: t, fan: o.blocked.fan, minFan: o.blocked.minFan });
+        blocked[q] = withChicken({ fan: o.blocked.fan, minFan: o.blocked.minFan }, o.blocked);
+        if (this.c.humans.indexOf(q) >= 0) this._emit(withChicken({ type: 'blockedWin', player: q, tile: t, fan: o.blocked.fan, minFan: o.blocked.minFan }, o.blocked));
       }
     }
     s.turn = from;

@@ -23,7 +23,15 @@
   var HKMJ = root.HKMJ || (root.HKMJ = {});
   var N = 34;
 
-  var DEFAULT_OPT = { kong: false, sevenPairs: true, luxurySevenPairs: true, knitted: true, lesserHonours: true, greaterHonours: true };
+  var DEFAULT_OPT = { kong: false, sevenPairs: true, luxurySevenPairs: true, knitted: true, lesserHonours: true, greaterHonours: true, chicken: 'minimum' };
+  /** Chicken-hand table rule: 'minimum' (booklet: like any hand, only if it reaches the Minimum Fan), 'always'
+   *  (may win even below the minimum) or 'never'. Booleans are accepted too: true = 'always', false = 'never'. */
+  function chickenRule(v) {
+    if (v === 'always' || v === 'never' || v === 'minimum') return v;
+    if (v === true) return 'always';
+    if (v === false) return 'never';
+    return 'minimum';
+  }
   function optOf(o) {
     if (!o) return DEFAULT_OPT;
     return {
@@ -32,7 +40,8 @@
       luxurySevenPairs: o.luxurySevenPairs === undefined ? DEFAULT_OPT.luxurySevenPairs : !!o.luxurySevenPairs,
       knitted: o.knitted === undefined ? DEFAULT_OPT.knitted : !!o.knitted,
       lesserHonours: o.lesserHonours === undefined ? DEFAULT_OPT.lesserHonours : !!o.lesserHonours,
-      greaterHonours: o.greaterHonours === undefined ? DEFAULT_OPT.greaterHonours : !!o.greaterHonours
+      greaterHonours: o.greaterHonours === undefined ? DEFAULT_OPT.greaterHonours : !!o.greaterHonours,
+      chicken: chickenRule(o.chicken)   // table rule: may a chicken hand 雞糊 win? 'minimum' | 'always' | 'never'
     };
   }
 
@@ -578,6 +587,7 @@
     // ---- extras (AI / scoring helpers)
     DEFAULT_OPTIONAL: DEFAULT_OPT,
     optionalOf: optOf,
+    chickenRule: chickenRule,
     KNIT: KNIT,
     KNIT_SET: KNIT_SET,
     ORPHANS: ORPHANS,

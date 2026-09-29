@@ -1,7 +1,7 @@
 # Hong Kong Mahjong 香港麻雀
 
 Play Hong Kong Mahjong in your browser against three computer players. Scoring follows the
-*HK Mahjong Scoring Sheet v1.0* (expanded by J-Lee): every win shows its full Fan breakdown and the payments.
+*HK Mahjong Scoring Sheet v1.0* (expanded by V. Nguyen): every win shows its full Fan breakdown and the payments.
 
 **▶ Play:** `https://<your-username>.github.io/<repo-name>/` — or download `index.html` and open it. It runs offline, needs no install, and sends no data anywhere.
 
@@ -17,7 +17,7 @@ Play Hong Kong Mahjong in your browser against three computer players. Scoring f
 - Choose the Chow, Pong and Kong sounds in Settings (spoken "chow chow chow", "Pongggg!", "Konggggg!" and more, with a ▶ preview)
 - Upbeat chiptune music plus sound effects for Chow (nom nom nom), Pong, Kong, wins (fireworks), chicken hands 雞糊 (bawk!) and the start of a game (all synthesised in the browser — Music and Sound can be switched off separately)
 - Built-in rules reference, including the booklet's Fan combination tables
-- Settings: minimum Fan, game length, optional (†) hands, computer difficulty, display size, tile highlighting, where new tiles go
+- Settings: minimum Fan, game length, optional (†) hands, chicken-hand 雞糊 rule (booklet / always / never), computer difficulty, display size, tile highlighting, where new tiles go
 - Save and resume (stored in your browser's local storage)
 
 ## How to play

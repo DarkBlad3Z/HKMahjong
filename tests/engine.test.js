@@ -957,7 +957,7 @@ test('buildWall helper and settings defaults', function () {
   try { wall({ hands: ['1m 1m 1m 1m 1m'] }); } catch (e) { threw = true; }
   ok(threw, 'five copies are impossible');
   eq(HKMJ.DEFAULT_SETTINGS, { minFan: 3, payment: 'full', unit: 'points', rounds: 4, aiLevel: 'normal', startingScore: 0,
-    optional: { kong: false, sevenPairs: true, luxurySevenPairs: true, knitted: true, lesserHonours: true, greaterHonours: true } });
+    optional: { kong: false, sevenPairs: true, luxurySevenPairs: true, knitted: true, lesserHonours: true, greaterHonours: true, chicken: 'minimum' } });
   var g = new Game({ seed: 1, settings: { minFan: 1, optional: { kong: true }, rounds: 'x', speed: 'fast', startingScore: 500 } });
   var s = g.getView(0).settings;
   eq([s.minFan, s.optional.kong, s.optional.sevenPairs, s.rounds, s.speed, s.startingScore], [1, true, true, 4, 'fast', 500]);

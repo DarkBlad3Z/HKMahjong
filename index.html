@@ -450,6 +450,8 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
 .sound-pick { display: flex; gap: 6px; align-items: center; }
 .sound-pick select { flex: 1; min-width: 0; }
 .btn.btn-preview { padding: 5px 10px; font-size: 13px; }
+
+.settings-row-wide { grid-column: 1 / -1; }
 </style>
 </head>
 <body>
@@ -720,7 +722,15 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
   var HKMJ = root.HKMJ || (root.HKMJ = {});
   var N = 34;
 
-  var DEFAULT_OPT = { kong: false, sevenPairs: true, luxurySevenPairs: true, knitted: true, lesserHonours: true, greaterHonours: true };
+  var DEFAULT_OPT = { kong: false, sevenPairs: true, luxurySevenPairs: true, knitted: true, lesserHonours: true, greaterHonours: true, chicken: 'minimum' };
+  /** Chicken-hand table rule: 'minimum' (booklet: like any hand, only if it reaches the Minimum Fan), 'always'
+   *  (may win even below the minimum) or 'never'. Booleans are accepted too: true = 'always', false = 'never'. */
+  function chickenRule(v) {
+    if (v === 'always' || v === 'never' || v === 'minimum') return v;
+    if (v === true) return 'always';
+    if (v === false) return 'never';
+    return 'minimum';
+  }
   function optOf(o) {
     if (!o) return DEFAULT_OPT;
     return {
@@ -729,7 +739,8 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
       luxurySevenPairs: o.luxurySevenPairs === undefined ? DEFAULT_OPT.luxurySevenPairs : !!o.luxurySevenPairs,
       knitted: o.knitted === undefined ? DEFAULT_OPT.knitted : !!o.knitted,
       lesserHonours: o.lesserHonours === undefined ? DEFAULT_OPT.lesserHonours : !!o.lesserHonours,
-      greaterHonours: o.greaterHonours === undefined ? DEFAULT_OPT.greaterHonours : !!o.greaterHonours
+      greaterHonours: o.greaterHonours === undefined ? DEFAULT_OPT.greaterHonours : !!o.greaterHonours,
+      chicken: chickenRule(o.chicken)   // table rule: may a chicken hand 雞糊 win? 'minimum' | 'always' | 'never'
     };
   }
 
@@ -1275,6 +1286,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
     // ---- extras (AI / scoring helpers)
     DEFAULT_OPTIONAL: DEFAULT_OPT,
     optionalOf: optOf,
+    chickenRule: chickenRule,
     KNIT: KNIT,
     KNIT_SET: KNIT_SET,
     ORPHANS: ORPHANS,
@@ -1810,9 +1822,18 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
     });
 
     var fan = best.fan;
+    // Chicken hand 雞糊 (booklet: "Chicken (0 Fan) Hand"): the hand itself scores nothing — any Fan it has comes
+    // only from bonus tiles (flowers / seasons / No Flowers). Table rule `optional.chicken`: 'minimum' (booklet p.12:
+    // like any hand, it needs the Minimum Fan), 'always' (may win even below the minimum) or 'never'.
+    // Blessings are never chicken hands.
+    var chicken = !env.blessing && best.tally.items.every(function (it) { return FEATURES[it.id] && FEATURES[it.id].group === 'bonus'; });
+    var rule = opt.chicken || 'minimum';
+    var valid = !!env.blessing || (chicken && rule === 'always') || (fan >= minFan && !(chicken && rule === 'never'));
     return {
       winning: true,
-      valid: fan >= minFan || !!env.blessing,
+      valid: valid,
+      chickenBarred: chicken && rule === 'never' && !env.blessing,   // blocked by the chicken rule, not by the minimum
+      chicken: chicken,
       fan: fan,
       rawFan: best.raw,
       limit: best.raw >= LIMIT,
@@ -1914,7 +1935,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
 
   var DEFAULT_SETTINGS = {
     minFan: 3, payment: 'full', unit: 'points', rounds: 4, aiLevel: 'normal', startingScore: 0,
-    optional: { kong: false, sevenPairs: true, luxurySevenPairs: true, knitted: true, lesserHonours: true, greaterHonours: true }
+    optional: { kong: false, sevenPairs: true, luxurySevenPairs: true, knitted: true, lesserHonours: true, greaterHonours: true, chicken: 'minimum' }
   };
   var DEFAULT_NAMES = ['You', 'Julie', 'Bel', 'Pat'];
   var MAX_HANDS = 300;              // SPEC §2.2 safety cap
@@ -1972,6 +1993,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
     out.optional = {};
     var uo = (u.optional && typeof u.optional === 'object') ? u.optional : {};
     Object.keys(d.optional).forEach(function (k) {
+      if (k === 'chicken') { out.optional[k] = HKMJ.Hand && HKMJ.Hand.chickenRule ? HKMJ.Hand.chickenRule(uo[k]) : d.optional[k]; return; }
       out.optional[k] = (typeof uo[k] === 'boolean') ? uo[k] : d.optional[k];
     });
     return out;
@@ -2441,7 +2463,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
       var ev = this._evalSelf(p);
       if (ev) {
         if (ev.valid) acts.push({ type: 'selfWin', fan: ev.fan, evaluation: ev });
-        else blocked = { fan: ev.fan, minFan: minFan };
+        else blocked = withChicken({ fan: ev.fan, minFan: minFan }, ev);
       }
       if (P.flowerOffer && P.flowers.length >= 7) {
         var fe = this._evalFlowers(p);
@@ -2469,7 +2491,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
     var ev = this._evaluate(this._ctx(q, P.hand.concat([t]), t, 'discard', this._discardFlags(q, from)));
     if (ev) {
       if (ev.valid) acts.push({ type: 'win', fan: ev.fan, evaluation: ev });
-      else blocked = { fan: ev.fan, minFan: this.c.settings.minFan, tile: t };
+      else blocked = withChicken({ fan: ev.fan, minFan: this.c.settings.minFan, tile: t }, ev);
     }
     if (!finalDiscard) {
       var n = countOf(P.hand, t);
@@ -2494,7 +2516,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
     var ev = this._evaluate(this._ctx(q, P.hand.concat([k]), k, 'robKong', {}));
     if (!ev) return { acts: [], blocked: null };
     if (ev.valid) return { acts: [{ type: 'win', fan: ev.fan, evaluation: ev }, { type: 'pass' }], blocked: null };
-    return { acts: [], blocked: { fan: ev.fan, minFan: this.c.settings.minFan, tile: k } };
+    return { acts: [], blocked: withChicken({ fan: ev.fan, minFan: this.c.settings.minFan, tile: k }, ev) };
   };
 
   // ------------------------------------------------------------------------------------------------ validation
@@ -2548,6 +2570,12 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
     return { match: same[0] };
   };
 
+  /** Adds chicken: true only when the chicken-hand table rule (not the minimum) is what blocks the win. */
+  function withChicken(o, src) { if (src && (src.chickenBarred || src.chicken)) o.chicken = true; return o; }
+  function blockedText(b) {
+    return b.chicken ? 'Winning shape, but it is a chicken hand 雞糊 (no Fan of its own) — this table does not allow chicken hands'
+      : 'Winning shape, but only ' + b.fan + ' Fan — this table needs ' + b.minFan;
+  }
   Game.prototype._unavailable = function (p, type) {
     var s = this.s, info;
     var TURN = ['discard', 'selfWin', 'flowerWin', 'concealedKong', 'addKong'];
@@ -2556,7 +2584,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
       if (s.afterClaim) return 'After a Chow or Pong you must discard (no win or Kong in the same turn)';
       if (type === 'selfWin') {
         info = this._turnInfo();
-        if (info.blocked) return 'Winning shape, but only ' + info.blocked.fan + ' Fan — this table needs ' + info.blocked.minFan;
+        if (info.blocked) return blockedText(info.blocked);
         return 'Self-Pick is not possible: the hand is not complete';
       }
       if (type === 'flowerWin') return 'Seven/Eight Flowers can be declared only right after collecting the 7th or 8th bonus tile';
@@ -2568,7 +2596,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
     if (TURN.indexOf(type) >= 0) return 'Cannot "' + type + '" now: waiting for answers to a ' + (c.kind === 'robKong' ? 'Kong' : 'discard');
     if (c.kind === 'robKong') return 'Only a win (Robbing the Kong) or pass is possible on an added Kong';
     if (type === 'win') {
-      if (c.blocked && c.blocked[p]) return 'Winning shape, but only ' + c.blocked[p].fan + ' Fan — this table needs ' + c.blocked[p].minFan;
+      if (c.blocked && c.blocked[p]) return blockedText(c.blocked[p]);
       return 'This tile does not complete ' + this._poss(p) + ' hand';
     }
     if (s.wall.length === 0) return 'The final discard can only be claimed for a win';
@@ -2613,7 +2641,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
     s.phase = 'turn'; s.seq++;
     if (!afterClaim && this.c.humans.indexOf(p) >= 0) {
       var b = this._turnInfo().blocked;
-      if (b) this._emit({ type: 'blockedWin', player: p, tile: this._winTileSelf(p), fan: b.fan, minFan: b.minFan });
+      if (b) this._emit(withChicken({ type: 'blockedWin', player: p, tile: this._winTileSelf(p), fan: b.fan, minFan: b.minFan }, b));
     }
   };
 
@@ -2729,8 +2757,8 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
       var o = kind === 'discard' ? this._claimOptionsFor(q, t, from) : this._robOptionsFor(q, t);
       if (o.acts.length) { options[q] = o.acts; any = true; }
       if (o.blocked) {
-        blocked[q] = { fan: o.blocked.fan, minFan: o.blocked.minFan };
-        if (this.c.humans.indexOf(q) >= 0) this._emit({ type: 'blockedWin', player: q, tile: t, fan: o.blocked.fan, minFan: o.blocked.minFan });
+        blocked[q] = withChicken({ fan: o.blocked.fan, minFan: o.blocked.minFan }, o.blocked);
+        if (this.c.humans.indexOf(q) >= 0) this._emit(withChicken({ type: 'blockedWin', player: q, tile: t, fan: o.blocked.fan, minFan: o.blocked.minFan }, o.blocked));
       }
     }
     s.turn = from;
@@ -4351,6 +4379,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
         card('knitted', '5', 'Knitted Tiles', '組合龍', 'Nine tiles that "knit" the three suits together — 1-4-7 of one suit, 2-5-8 of a second, 3-6-9 of the third — plus one ordinary set and a pair. The ordinary set can still be Chowed or Ponged and still scores its own bonuses; a flush never applies since three suits are in play.', { optional: true }),
         card('lesserHonours', '8', 'Lesser Honours', '全不靠', 'Fourteen single tiles, no sets or pair: a mix of honours plus one knitted run per suit (9 knitted + 5 honours, or 8 knitted + 6 honours). Concealed Hand is automatically included; Self-Pick and bonus tiles still add on top.', { optional: true }),
         card('greaterHonours', '10', 'Greater Honours', '七星不靠', 'All seven honour tiles as singles, plus any seven knitted tiles — fourteen singles, no sets or pair. Concealed by definition; Self-Pick and bonus tiles still add on top.', { optional: true }),
+        card('chicken', '0', 'Chicken Hand', '雞糊', 'A complete hand that scores nothing of its own — any Fan it has comes only from flowers, seasons or No Flowers. The booklet treats it like any other hand: it can only win if it reaches the Minimum Fan (so only at a 0 Fan table). House rule in Settings → Table rules: “Can always win” lets a chicken hand win even below the Minimum Fan (it pays what it is worth); “Can never win” bars it even at a 0 Fan table. Blessings are never chicken hands.', { optional: true }),
         card('thirteenOrphans', '13', 'Thirteen Orphans', '十三么', 'One each of the 1 and 9 of every suit plus all seven honours, and a duplicate of any one of them. An automatic limit hand; concealed by definition.'),
         card('nineGates', '13', 'Nine Gates', '九蓮寶燈', '1112345678999 of one suit, plus any one more tile of that suit as the winner — nine different tiles could complete it. Must be fully concealed; an automatic limit hand (the Full Flush inside it is not added separately).'),
         card('heaven', '13', 'Blessing of Heaven', '天糊', 'The dealer’s opening 14 tiles are already a complete hand. An automatic limit win — the shape alone is enough, however little it would otherwise score.'),
@@ -4784,7 +4813,8 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
 
   function toastMarkup(view, ui) {
     var pieces = [];
-    if (view.blockedWin) pieces.push('Winning shape, but only ' + view.blockedWin.fan + ' Fan — this table needs ' + view.blockedWin.minFan + '.');
+    if (view.blockedWin) pieces.push(view.blockedWin.chicken ? 'Winning shape, but it is a chicken hand 雞糊 — this table does not allow chicken hands.'
+      : 'Winning shape, but only ' + view.blockedWin.fan + ' Fan — this table needs ' + view.blockedWin.minFan + '.');
     if (ui.toast) pieces.push(ui.toast.text);
     if (!pieces.length) return '';
     return '<div class="toast">' + pieces.map(function (t) { return '<div class="toast-line">' + esc(t) + '</div>'; }).join('') + '</div>';
@@ -4997,9 +5027,13 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
 
   var OPTIONAL_LABELS = {
     kong: 'Kong 槓', sevenPairs: 'Seven Pairs 七對子', luxurySevenPairs: 'Luxury Seven Pairs 豪華七對',
-    knitted: 'Knitted Tiles 組合龍', lesserHonours: 'Lesser Honours 全不靠', greaterHonours: 'Greater Honours 七星不靠'
+    knitted: 'Knitted Tiles 組合龍', lesserHonours: 'Lesser Honours 全不靠', greaterHonours: 'Greater Honours 七星不靠',
+    chicken: 'Chicken hand can win 雞糊'
   };
-  var OPTIONAL_KEYS = ['kong', 'sevenPairs', 'luxurySevenPairs', 'knitted', 'lesserHonours', 'greaterHonours'];
+  var OPTIONAL_KEYS = ['kong', 'sevenPairs', 'luxurySevenPairs', 'knitted', 'lesserHonours', 'greaterHonours', 'chicken'];
+  var NOT_DAGGERED = { chicken: true };   // a house rule, not one of the booklet's † hands
+  var CHICKEN_CHOICES = [['minimum', 'Can win if it meets the Minimum Fan (booklet)'], ['always', 'Can always win'], ['never', 'Can never win']];
+  var CHICKEN_STATE = { minimum: 'Needs the Minimum Fan', always: 'Allowed', never: 'Not allowed' };
 
   function renderSettingsModal(modal) {
     var d = modal.draft;
@@ -5022,7 +5056,8 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
       settingsRow('Highlight matching tiles 同牌', checkboxInput('hoverHighlight', d.hoverHighlight !== false)) +
       settingsRow('New tiles go 新牌', selectInput('newTiles', d.newTiles || 'sorted',
         [['sorted', 'Into order'], ['end', 'At the right end']]));
-    var toggles = OPTIONAL_KEYS.map(function (k) { return settingsRow(OPTIONAL_LABELS[k] + ' †', checkboxInput('optional.' + k, d.optional[k])); }).join('');
+    var toggles = OPTIONAL_KEYS.map(function (k) { if (k === 'chicken') return settingsRow('Chicken hand 雞糊 (no Fan of its own)', selectInput('optional.chicken', d.optional.chicken || 'minimum', CHICKEN_CHOICES)).replace('class="settings-row"', 'class="settings-row settings-row-wide"');
+      return settingsRow(OPTIONAL_LABELS[k] + (NOT_DAGGERED[k] ? '' : ' †'), checkboxInput('optional.' + k, !!d.optional[k])); }).join('');
     var restartNotice = modal.confirmingRestart
       ? '<div class="settings-confirm"><p>Table-rule changes only take effect in a new game.</p>' +
         '<button type="button" class="btn" data-action="settings-keep-playing">Keep Playing</button>' +
@@ -5048,7 +5083,10 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
   }
   function rulesCard(c, settings) {
     var optNote = '';
-    if (c.optional) {
+    if (c.optional && c.id === 'chicken') {
+      var rule = (settings && settings.optional && settings.optional.chicken) || 'minimum';
+      optNote = '<span class="opt-state ' + (rule === 'never' ? 'opt-off' : 'opt-on') + '">' + (CHICKEN_STATE[rule] || CHICKEN_STATE.minimum) + '</span>';
+    } else if (c.optional) {
       var on = settings && settings.optional && settings.optional[c.id];
       optNote = '<span class="opt-state ' + (on ? 'opt-on' : 'opt-off') + '">' + (on ? 'Enabled' : 'Disabled') + '</span>';
     }
@@ -5640,6 +5678,7 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
   function isChickenHand(result) {
     try {
       if (!result || result.source === 'flowers' || !result.evaluation) return false;
+      if (typeof result.evaluation.chicken === 'boolean') return result.evaluation.chicken;
       var F = HKMJ.Scoring.FEATURES;
       return (result.evaluation.items || []).every(function (it) { return F[it.id] && F[it.id].group === 'bonus'; });
     } catch (e) { return false; }
@@ -5658,7 +5697,8 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
     }
     else if (evt.type === 'blockedWin' && evt.player === 0) {
       var tileName = (evt.tile != null && HKMJ.Tiles) ? (HKMJ.Tiles.name(evt.tile) + ' ' + HKMJ.Tiles.zh(evt.tile) + ' completes your hand, but') : 'Winning shape, but';
-      showToast(tileName + ' it is only ' + evt.fan + ' Fan — this table needs ' + evt.minFan + '.');
+      showToast(evt.chicken ? tileName + ' it is a chicken hand 雞糊 — chicken hands can’t win at this table (Settings → Table rules).'
+        : tileName + ' it is only ' + evt.fan + ' Fan — this table needs ' + evt.minFan + '.');
     }
   }
   function attachEngineListeners() {
@@ -5775,7 +5815,8 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
     var keys = ['minFan', 'payment', 'unit', 'rounds', 'aiLevel'];
     for (var i = 0; i < keys.length; i++) if (draft[keys[i]] !== active[keys[i]]) return true;
     var optKeys = Object.keys((HKMJ.DEFAULT_SETTINGS && HKMJ.DEFAULT_SETTINGS.optional) || {});
-    for (var j = 0; j < optKeys.length; j++) if (!!draft.optional[optKeys[j]] !== !!active.optional[optKeys[j]]) return true;
+    function norm(v) { return typeof v === 'string' ? v : !!v; }
+    for (var j = 0; j < optKeys.length; j++) if (norm(draft.optional[optKeys[j]]) !== norm(active.optional[optKeys[j]])) return true;
     return false;
   }
   function startNewGame(draft) {

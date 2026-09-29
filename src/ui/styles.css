@@ -443,3 +443,5 @@ button.tile { border: 1px solid rgba(0,0,0,0.15); }
 .sound-pick { display: flex; gap: 6px; align-items: center; }
 .sound-pick select { flex: 1; min-width: 0; }
 .btn.btn-preview { padding: 5px 10px; font-size: 13px; }
+
+.settings-row-wide { grid-column: 1 / -1; }

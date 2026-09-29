@@ -516,9 +516,18 @@
     });
 
     var fan = best.fan;
+    // Chicken hand 雞糊 (booklet: "Chicken (0 Fan) Hand"): the hand itself scores nothing — any Fan it has comes
+    // only from bonus tiles (flowers / seasons / No Flowers). Table rule `optional.chicken`: 'minimum' (booklet p.12:
+    // like any hand, it needs the Minimum Fan), 'always' (may win even below the minimum) or 'never'.
+    // Blessings are never chicken hands.
+    var chicken = !env.blessing && best.tally.items.every(function (it) { return FEATURES[it.id] && FEATURES[it.id].group === 'bonus'; });
+    var rule = opt.chicken || 'minimum';
+    var valid = !!env.blessing || (chicken && rule === 'always') || (fan >= minFan && !(chicken && rule === 'never'));
     return {
       winning: true,
-      valid: fan >= minFan || !!env.blessing,
+      valid: valid,
+      chickenBarred: chicken && rule === 'never' && !env.blessing,   // blocked by the chicken rule, not by the minimum
+      chicken: chicken,
       fan: fan,
       rawFan: best.raw,
       limit: best.raw >= LIMIT,

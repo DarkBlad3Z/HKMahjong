@@ -348,7 +348,8 @@
 
   function toastMarkup(view, ui) {
     var pieces = [];
-    if (view.blockedWin) pieces.push('Winning shape, but only ' + view.blockedWin.fan + ' Fan — this table needs ' + view.blockedWin.minFan + '.');
+    if (view.blockedWin) pieces.push(view.blockedWin.chicken ? 'Winning shape, but it is a chicken hand 雞糊 — this table does not allow chicken hands.'
+      : 'Winning shape, but only ' + view.blockedWin.fan + ' Fan — this table needs ' + view.blockedWin.minFan + '.');
     if (ui.toast) pieces.push(ui.toast.text);
     if (!pieces.length) return '';
     return '<div class="toast">' + pieces.map(function (t) { return '<div class="toast-line">' + esc(t) + '</div>'; }).join('') + '</div>';
@@ -561,9 +562,13 @@
 
   var OPTIONAL_LABELS = {
     kong: 'Kong 槓', sevenPairs: 'Seven Pairs 七對子', luxurySevenPairs: 'Luxury Seven Pairs 豪華七對',
-    knitted: 'Knitted Tiles 組合龍', lesserHonours: 'Lesser Honours 全不靠', greaterHonours: 'Greater Honours 七星不靠'
+    knitted: 'Knitted Tiles 組合龍', lesserHonours: 'Lesser Honours 全不靠', greaterHonours: 'Greater Honours 七星不靠',
+    chicken: 'Chicken hand can win 雞糊'
   };
-  var OPTIONAL_KEYS = ['kong', 'sevenPairs', 'luxurySevenPairs', 'knitted', 'lesserHonours', 'greaterHonours'];
+  var OPTIONAL_KEYS = ['kong', 'sevenPairs', 'luxurySevenPairs', 'knitted', 'lesserHonours', 'greaterHonours', 'chicken'];
+  var NOT_DAGGERED = { chicken: true };   // a house rule, not one of the booklet's † hands
+  var CHICKEN_CHOICES = [['minimum', 'Can win if it meets the Minimum Fan (booklet)'], ['always', 'Can always win'], ['never', 'Can never win']];
+  var CHICKEN_STATE = { minimum: 'Needs the Minimum Fan', always: 'Allowed', never: 'Not allowed' };
 
   function renderSettingsModal(modal) {
     var d = modal.draft;
@@ -586,7 +591,8 @@
       settingsRow('Highlight matching tiles 同牌', checkboxInput('hoverHighlight', d.hoverHighlight !== false)) +
       settingsRow('New tiles go 新牌', selectInput('newTiles', d.newTiles || 'sorted',
         [['sorted', 'Into order'], ['end', 'At the right end']]));
-    var toggles = OPTIONAL_KEYS.map(function (k) { return settingsRow(OPTIONAL_LABELS[k] + ' †', checkboxInput('optional.' + k, d.optional[k])); }).join('');
+    var toggles = OPTIONAL_KEYS.map(function (k) { if (k === 'chicken') return settingsRow('Chicken hand 雞糊 (no Fan of its own)', selectInput('optional.chicken', d.optional.chicken || 'minimum', CHICKEN_CHOICES)).replace('class="settings-row"', 'class="settings-row settings-row-wide"');
+      return settingsRow(OPTIONAL_LABELS[k] + (NOT_DAGGERED[k] ? '' : ' †'), checkboxInput('optional.' + k, !!d.optional[k])); }).join('');
     var restartNotice = modal.confirmingRestart
       ? '<div class="settings-confirm"><p>Table-rule changes only take effect in a new game.</p>' +
         '<button type="button" class="btn" data-action="settings-keep-playing">Keep Playing</button>' +
@@ -612,7 +618,10 @@
   }
   function rulesCard(c, settings) {
     var optNote = '';
-    if (c.optional) {
+    if (c.optional && c.id === 'chicken') {
+      var rule = (settings && settings.optional && settings.optional.chicken) || 'minimum';
+      optNote = '<span class="opt-state ' + (rule === 'never' ? 'opt-off' : 'opt-on') + '">' + (CHICKEN_STATE[rule] || CHICKEN_STATE.minimum) + '</span>';
+    } else if (c.optional) {
       var on = settings && settings.optional && settings.optional[c.id];
       optNote = '<span class="opt-state ' + (on ? 'opt-on' : 'opt-off') + '">' + (on ? 'Enabled' : 'Disabled') + '</span>';
     }
